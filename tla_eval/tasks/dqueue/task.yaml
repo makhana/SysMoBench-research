@@ -1,0 +1,59 @@
+# dqueue task configuration
+name: "dqueue"
+description: "dqueue distributed producer-consumer queue"
+system_type: "distributed"
+language: "go"
+
+# Source code repository information
+repository:
+  url: "https://github.com/DistCompiler/pgo.git"
+  branch: "main"
+  
+# Files to extract from the repository
+source_files:
+  - path: "systems/dqueue/dqueue.go" 
+    description: "Main distributed producer-consumer queue implementation"
+
+# Default file to use if not specified
+default_source_file: "systems/dqueue/dqueue.go"
+
+# TLA+ specification module name
+specModule: "dqueue"
+
+# Traces folder location
+traces_folder: "data/sys_traces/dqueue"
+
+# Metadata
+metadata:
+  original_project: "dqueue"
+
+# TV (transition validation) configuration
+# Only infrastructure + evaluation scope go here. Schema variables,
+# auxiliary variables, and value conventions are derived by the agent
+# from reading the spec — not prescribed in this file.
+tv:
+  repo_path: "data/repositories/pgo"
+
+  # Semantic scope of evaluation. Agent maps these to the spec's own names.
+  target_actions:
+    - Request
+    - Produce
+
+  harness:
+    type: "native"
+    instrumentation_file: "scripts/harness/dqueue/dqueue_trace_test.go"
+    test_file: "data/repositories/pgo/systems/dqueue/dqueue_test.go"
+    test_target: "TestProducerConsumerWithTrace"
+    run_command: "bash scripts/harness/dqueue/run.sh"
+    traces_output_env: "TRACES_DIR"
+    traces_default_dir: "artifacts/dqueue/traces"
+    instrumentation_doc: "tla_eval/tasks/dqueue/INSTRUMENTATION.md"
+    # PGo emits one event per MPCal block execution, with the label in
+    # the .pc write's oldValue. Our parser maps labels to spec actions:
+    trace_action_map:
+      "AConsumer.c1": "Request"
+      "AProducer.p2": "Produce"
+    coverage_gaps:
+      - "TestProducerConsumerWithTrace is a single 1p/1c scenario with 3 produced values — ~3 Request + 3 Produce windows"
+      - "No fault/retry scenarios; aborted steps dropped before scoring"
+      - "Out-of-scope MPCal labels (c/c2/p/p1) emitted with action=null for the agent's awareness"

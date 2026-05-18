@@ -1,0 +1,49 @@
+# spin task configuration
+name: "spin"
+description: "Asterinas OS spinlock synchronization primitive"
+system_type: "concurrent"
+language: "rust"
+
+# Source code repository information
+repository:
+  url: "https://github.com/asterinas/asterinas.git"
+  branch: "main"
+  
+# Files to extract from the repository
+source_files:
+  - path: "ostd/src/sync/spin.rs"
+    description: "Spinlock implementation with atomic operations"
+
+# Default file to use if not specified
+default_source_file: "ostd/src/sync/spin.rs"
+
+# TLA+ specification module name
+specModule: "spin"
+
+# Traces folder location
+traces_folder: "data/sys_traces/spin"
+
+# Metadata
+metadata:
+  original_project: "asterinas"
+
+# TV (transition validation) configuration
+# Only infrastructure + evaluation scope go here. Schema variables,
+# auxiliary variables, and value conventions are derived by the agent
+# from reading the spec — not prescribed in this file.
+tv:
+  # Local Asterinas source clone (shallow). Agent instruments the kernel here.
+  repo_path: "artifacts/spin"
+
+  # Semantic scope of evaluation. Agent maps these to the spec's own names.
+  target_actions:
+    - AcquireLock
+    - ReleaseLock
+
+  # Harness info (Docker-based; QEMU kernel tests emit NDJSON)
+  harness:
+    type: "docker"
+    docker_image: "asterinas/asterinas:0.16.0-20250822"
+    reference_patch: "data/patches/asterinas_tla_trace.patch"
+    patch_note: "Existing patch against older HEAD; may need adaptation for current main branch."
+    test_target: "test_spin_trace"

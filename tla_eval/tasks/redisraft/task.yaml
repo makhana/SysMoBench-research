@@ -1,0 +1,72 @@
+# redisraft task configuration
+name: "redisraft"
+description: "RedisRaft strongly-consistent Redis deployments with Raft consensus algorithm"
+system_type: "distributed"
+language: "c"
+
+# Source code repository information
+repository:
+  url: "https://github.com/RedisLabs/redisraft.git"
+  branch: "master"
+  
+# Files to extract from the repository
+source_files:
+  - path: "deps/raft/src/raft_server.c"
+    description: "Core Raft consensus algorithm implementation with leader election and log replication"
+
+# Default file to use if not specified
+default_source_file: "deps/raft/src/raft_server.c"
+
+# TLA+ specification module name
+specModule: "redisraft"
+
+# Traces folder location
+traces_folder: "data/sys_traces/redisraft"
+
+# Metadata
+metadata:
+  original_project: "redisraft"
+  description: "Redis module implementing Raft consensus for strongly-consistent clusters"
+  
+# TV (transition validation) configuration
+# Only infrastructure + evaluation scope go here. Schema variables,
+# auxiliary variables, and value conventions are derived by the agent
+# from reading the spec — not prescribed in this file.
+tv:
+  # Bootstrap: clone RedisLabs/redisraft into artifacts/redisraft/ and apply
+  # the harness instrumentation patch; see INSTRUMENTATION.md for the
+  # nested layout this expects ({repo_path}/harness/run.sh + artifact dirs).
+  repo_path: "artifacts/redisraft"
+
+  # Semantic scope of evaluation. Agent maps these to the spec's own names.
+  # The raw trace emits the event names in the right column; TV windowing
+  # translates each to the spec action on the left.
+  target_actions:
+    - ElectionTimeout
+    - BecomeCandidate
+    - BecomeLeader
+    - RecvRequestVote
+    - RecvAppendEntries
+    - LogAppend
+
+  harness:
+    type: "native"
+    instrumentation_file: "harness/patches/instrumentation.patch"
+    test_file: "harness/src/test_trace.c"
+    run_command: "bash scripts/harness/redisraft/run.sh"
+    traces_output_env: "TRACES_DIR"
+    traces_default_dir: "artifacts/redisraft/traces"
+    instrumentation_doc: "tla_eval/tasks/redisraft/INSTRUMENTATION.md"
+    # The inner Specula harness writes to $REPO_PATH/traces/ — the wrapper
+    # mirrors those files into TRACES_DIR.
+    inner_harness: "harness/run.sh"
+    trace_action_map:
+      Timeout: "ElectionTimeout"           # Timeout also represents BecomeCandidate
+      BecomeLeader: "BecomeLeader"
+      HandleRequestVoteRequest: "RecvRequestVote"
+      HandleAppendEntriesRequest: "RecvAppendEntries"
+      ClientRequest: "LogAppend"
+    coverage_gaps:
+      - "Timeout covers both ElectionTimeout and BecomeCandidate transitions; agent decides per-action mapping"
+      - "Only 3 scenarios (basic_consensus, leader_failover, snapshot_basic) — ~74 events total"
+      - "No failed-vote / split-brain scenarios; RecvRequestVote only scored on granting path"

@@ -1,0 +1,62 @@
+# ringbuffer task configuration
+name: "ringbuffer"
+description: "Asterinas OS lock-free SPSC ring buffer"
+system_type: "concurrent"
+language: "rust"
+
+# Source code repository information
+repository:
+  url: "https://github.com/asterinas/asterinas.git"
+  branch: "main"
+
+# Files to extract from the repository
+source_files:
+  - path: "kernel/src/util/ring_buffer.rs"
+    description: "Lock-free SPSC ring buffer implementation"
+
+# Default file to use if not specified
+default_source_file: "kernel/src/util/ring_buffer.rs"
+
+# TLA+ specification module name
+specModule: "ringbuffer"
+
+# Traces folder location
+traces_folder: "data/sys_traces/ringbuffer"
+
+# Metadata
+metadata:
+  original_project: "asterinas"
+  concurrency_model: "lock_free_spsc"
+
+# TV (transition validation) configuration
+# Only infrastructure + evaluation scope go here. Schema variables,
+# auxiliary variables, and value conventions are derived by the agent
+# from reading the spec — not prescribed in this file.
+tv:
+  # Shared Asterinas kernel clone (same tree as mutex/rwmutex/spin, with
+  # ringbuffer-specific patches). See INSTRUMENTATION.md.
+  repo_path: "artifacts/spin"
+
+  target_actions:
+    - Push
+    - Pop
+
+  harness:
+    type: "native"
+    instrumentation_file: "kernel/src/util/ring_buffer_trace.rs"
+    test_file: "kernel/src/util/ring_buffer_trace.rs"
+    test_target: "test_rb_trace_randomized"
+    run_command: "bash scripts/harness/ringbuffer/run.sh"
+    traces_output_env: "TRACES_DIR"
+    traces_default_dir: "artifacts/ringbuffer/traces"
+    instrumentation_doc: "tla_eval/tasks/ringbuffer/INSTRUMENTATION.md"
+    trace_action_map:
+      Push: "Push"
+      PushSlice: "Push"
+      Pop: "Pop"
+      PopSlice: "Pop"
+    coverage_gaps:
+      - "Single-threaded kernel test — producer/consumer are sequential, not genuinely concurrent"
+      - "Create/Split setup events emitted but out of target scope; agent filters"
+      - "success=false events (empty-Pop / full-Push) are scored only if the spec models failure paths"
+      - "Host-side harness; requires one-time docker build of cargo-osdk and initramfs materialization (see INSTRUMENTATION.md)"

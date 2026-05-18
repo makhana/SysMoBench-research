@@ -1,0 +1,50 @@
+# Invariants for Asterinas RingBuffer Systems
+# Includes both generic SPSC ring buffer properties and Asterinas-specific features
+
+invariants:
+  # Generic SPSC Ring Buffer Invariants (applicable to all SPSC implementations)
+  - name: "BufferBoundsInvariant"
+    type: "safety"
+    natural_language: "The number of items in the buffer never exceeds its capacity"
+    formal_description: "The fundamental capacity constraint: the difference between tail and head (representing the number of items) must never exceed the buffer capacity"
+    tla_example: |
+      BufferBoundsInvariant ==
+        (tail - head) <= capacity
+
+  - name: "EmptyFullConsistency"
+    type: "safety"
+    natural_language: "The buffer cannot be both empty and full simultaneously"
+    formal_description: "Empty condition (head = tail) and full condition ((tail - head) = capacity) are mutually exclusive"
+    tla_example: |
+      EmptyFullConsistency ==
+        ~((head = tail) /\ ((tail - head) = capacity))
+
+  # Generic Liveness Properties
+  - name: "EventualProducerProgress"
+    type: "liveness"
+    natural_language: "If the buffer is not full, the producer will eventually be able to push"
+    formal_description: "Lock-free progress guarantee: under fair scheduling, if there is free space, producer can make progress. Use ENABLED to express that the action can be executed."
+    tla_example: |
+      EventualProducerProgress ==
+        (~IsFull) ~> ENABLED Push
+      \* Alternative forms depending on spec structure:
+      \* (~Full(head, tail)) ~> ENABLED Produce
+      \* ((tail - head) < capacity) ~> ENABLED ProducerAction
+
+  - name: "EventualConsumerProgress"
+    type: "liveness"
+    natural_language: "If the buffer is not empty, the consumer will eventually be able to pop"
+    formal_description: "Lock-free progress guarantee: under fair scheduling, if there are items, consumer can make progress. Use ENABLED to express that the action can be executed."
+    tla_example: |
+      EventualConsumerProgress ==
+        (~IsEmpty) ~> ENABLED Pop
+      \* Alternative forms depending on spec structure:
+      \* (~Empty(head, tail)) ~> ENABLED Consume
+      \* (head # tail) ~> ENABLED ConsumerAction
+
+metadata:
+  total_invariants: 4
+  safety_invariants: 2
+  liveness_invariants: 2
+  generic_invariants: 4  # BufferBoundsInvariant, EmptyFullConsistency, EventualProducerProgress, EventualConsumerProgress
+  asterinas_specific_invariants: 0

@@ -1,0 +1,69 @@
+You are an expert in formal verification and TLA+ specifications with deep expertise in concurrent systems and synchronization primitives.
+
+Convert the following PGo-generated distributed lock service source code to a comprehensive TLA+ specification.
+
+System: Locksvc distributed locking service
+Focus: {focus}
+
+Source Code from {file_path}:
+```go
+{source_code}
+```
+
+Lock modeling requirements:
+
+MANDATORY CORE ACTIONS (must include all):
+1. 【Lock/Unlock Requests】Client sends lock() request, receives GrantMsg, then sends unlock() on release
+2. 【Server Queue Handling】Server enqueues LockMsg senders, grants lock immediately if queue empty, dequeues on UnlockMsg
+3. 【Grant Dispatch】Server sends GrantMsg to the head of the queue when a lock is available
+4. 【Client Critical Section】Client enters criticalSection only after receiving GrantMsg, sets hasLock = true
+5. 【Mailbox Communication】ReliableLink read/write over bag-based mailboxes (message send/receive abstraction)
+
+EXPLICITLY EXCLUDED (do not model):
+- Debug formatting and interface implementations
+- Thread ownership tracking complexities beyond basic exclusion
+- Advanced guard type variations (lifetime management complexities)
+- Hardware memory ordering details (Acquire/Release ordering - handle at logical atomicity level only)
+- Detailed wait_until() retry loop implementation (abstract as waiting state)
+
+REQUIRED BEHAVIORAL SCOPE:
+- Boolean ownership state tracked via hasLock[client]: false (unlocked) ↔ true (locked)
+- Exclusive access enforcement: at most one client in criticalSection
+- FIFO-like queue maintained at server (Append on LockMsg, Tail on UnlockMsg, Head granted)
+- Client can reacquire lock only after unlock message is processed
+- Lock acquisition: blocking until GrantMsg arrives vs non-blocking network sends
+- Automatic GrantMsg dispatch ensures queued clients eventually progress
+- Thread (client) may be waiting in acquireLock state until GrantMsg received
+
+EVALUATION METHOD:
+Your specification will be validated against execution traces collected from the real system. For each observed state transition in a trace, we check whether one of your actions, applied from the trace's pre-state, reaches the trace's post-state in exactly one step. Each target action is graded independently (pass rate across sampled windows).
+
+Generate a TLA+ specification that accurately models the lock service's concurrent behavior.
+
+MANDATORY NAMING CONVENTIONS (Trace Validation Interface):
+To ensure the specification can be validated against real system execution traces, the following action names MUST appear EXACTLY (case-sensitive) as top-level action operators in your TLA+ specification. The TV evaluator maps trace events to these action names — any mismatch and the action scores 0.
+
+Required actions:
+  - `ClientLockRequest`
+  - `ServerGrantLock`
+  - `ClientCriticalSection`
+  - `ClientUnlockRequest`
+
+Each required action must be a named definition (e.g. `ActionName(args) == ...`) referenced from `Next` via `\/ \E ... : ActionName(...)` or a direct disjunct. Do not rename, merge, or split these actions — they form the contract between your spec and the trace harness.
+
+SYMBOL DECLARATION SAFETY (SANY will reject the spec otherwise):
+- Every identifier you reference must be declared or defined. Common pitfalls:
+  * `NULL` / `Nil` / `None` are NOT TLA+ built-ins. If you need a sentinel, declare it as a CONSTANT (and bind it in the cfg) or define it, e.g. `NULL == CHOOSE v : v \notin Servers`.
+  * `Min` / `Max` are NOT in the standard modules. Either `EXTENDS FiniteSetsExt` and use `Min(S)` / `Max(S)`, or define your own (e.g. `Min2(a, b) == IF a <= b THEN a ELSE b`).
+  * Every name in `VARIABLES <...>` must appear in `Init` and be transformed by `Next`; every CONSTANT must appear in the .cfg's `CONSTANTS` block with a concrete value.
+- Before emitting the spec, scan each identifier: is it (a) brought in by an EXTENDS, (b) declared as a CONSTANT/VARIABLE, or (c) defined via `==` earlier in the module? If none of the three, SANY will flag it as `Unknown operator`.
+
+CRITICAL OUTPUT REQUIREMENTS:
+1. The MODULE name must be exactly "locksvc" (---- MODULE locksvc ----)
+2. Output EXACTLY TWO fenced code blocks — a ```tla block and a ```cfg block. Output NOTHING else (no prose, no markdown outside the fences).
+3. The ```tla block contains the full TLA+ specification, starting with ---- MODULE locksvc ---- and ending with ====
+4. The ```cfg block contains the TLC configuration. Use SPECIFICATION Spec (NOT INIT/NEXT), and a CONSTANTS section that assigns a concrete finite value to every CONSTANT declared in your .tla.
+5. Do NOT add INVARIANT or PROPERTY lines to the .cfg. Do NOT include comments or explanations outside the two fenced blocks.
+6. **DO NOT define invariants** (like MutualExclusion, Invariant, etc.) - only include TypeOK, Init, actions, Next, Spec, and Vars
+7. **MUST include EXTENDS statement**: The specification must extend at least these modules: TLC, Sequences, SequencesExt, Naturals, FiniteSets, Bags
+8. **MANDATORY Spec Definition with Fairness**: The Spec definition MUST include appropriate fairness assumptions (e.g., WF_vars/SF_vars for action operations) to ensure liveness properties.

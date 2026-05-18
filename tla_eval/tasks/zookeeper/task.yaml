@@ -1,0 +1,68 @@
+# zookeeper leader election task configuration
+name: "zookeeper"
+description: "ZooKeeper Zab leader election (3.9.1)"
+system_type: "distributed"
+language: "java"
+
+# Source code repository information
+repository:
+  url: "https://github.com/Lingzhi-Ouyang/Remix.git"
+  branch: "master"
+
+# Files to extract from the repository (multi-file default supported)
+default_source_file:
+  - path: "apache-zookeeper-3.9.1/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/FastLeaderElection.java"
+    description: "Fast leader election implementation (notifications, vote comparison, rounds)"
+  - path: "apache-zookeeper-3.9.1/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Election.java"
+    description: "Leader election interface"
+  - path: "apache-zookeeper-3.9.1/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Vote.java"
+    description: "Vote structure used during election"
+  - path: "apache-zookeeper-3.9.1/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/QuorumPeer.java"
+    description: "Quorum peer state machine driving election and role transitions"
+  - path: "apache-zookeeper-3.9.1/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/QuorumPeerMain.java"
+    description: "ZooKeeper quorum peer entry point (starts election loop)"
+  - path: "apache-zookeeper-3.9.1/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/QuorumPeerConfig.java"
+    description: "Configuration loader for quorum peers (peer IDs, addresses, election settings)"
+
+# TLA+ specification module name
+specModule: "zookeeper"
+
+# Traces folder location
+traces_folder: "data/sys_traces/zookeeper"
+
+# Metadata
+metadata:
+  original_project: "apache-zookeeper"
+  protocol_scope: "zab_leader_election_only"
+  version: "3.9.1"
+
+# TV (transition validation) configuration
+# Only infrastructure + evaluation scope go here. Schema variables,
+# auxiliary variables, and value conventions are derived by the agent
+# from reading the spec — not prescribed in this file.
+tv:
+  repo_path: "data/repositories/Remix"
+
+  # Semantic scope of evaluation. Agent maps these to the spec's own names.
+  target_actions:
+    - Notification
+    - HandleNotification
+    - BecomeLeader
+
+  harness:
+    type: "native"
+    instrumentation_file: "data/patches/remix_ndjson_output_v2.patch"
+    test_file: "checker/server/src/main/java/org/disalg/remix/server/ReplayService.java"
+    run_command: "bash scripts/harness/zookeeper/run.sh"
+    traces_output_env: "NDJSON_OUTPUT"
+    traces_default_dir: "artifacts/zookeeper/traces"
+    instrumentation_doc: "tla_eval/tasks/zookeeper/INSTRUMENTATION.md"
+    # Raw trace event names already match spec action names.
+    trace_action_map:
+      Notification: "Notification"
+      HandleNotification: "HandleNotification"
+      BecomeLeader: "BecomeLeader"
+    coverage_gaps:
+      - "Only 3 demo scenarios — ~32 Notification, ~20 HandleNotification, 2 BecomeLeader windows"
+      - "No vote-reject path in demo traces; HandleNotification only scored on vote-grant transitions"
+      - "LocalEvent (~24 per run) emitted by upstream instrumentation is out of scope; tv-eval filters it"

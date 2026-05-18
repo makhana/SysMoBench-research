@@ -1,0 +1,58 @@
+# etcd task configuration
+name: "etcd"
+description: "etcd distributed key-value store with Raft consensus"
+system_type: "distributed"
+language: "go"
+
+# Source code repository information
+repository:
+  url: "https://github.com/etcd-io/raft.git"
+  branch: "main"
+  # Fixed version for trace generation stability
+  version: "v3.5.12"  # Last tested stable version
+  
+# Files to extract from the repository
+source_files:
+  - path: "raft.go" 
+    description: "Main Raft consensus algorithm implementation"
+
+# Default file to use if not specified
+default_source_file: "raft.go"
+
+# TLA+ specification module name
+specModule: "etcdraft"
+
+# Traces folder location
+traces_folder: "data/sys_traces/etcd"
+
+# Metadata
+metadata:
+  original_project: "etcd"
+  version: "v3.5.12"  # Fixed for stability
+
+# TV (transition validation) configuration
+# Only infrastructure + evaluation scope go here. Schema variables,
+# auxiliary variables, and value conventions are derived by the agent
+# from reading the spec — not prescribed in this file.
+tv:
+  # Local instrumented repo (launcher uses as default --repo).
+  # Bootstrap: clone etcd-io/raft into artifacts/etcd/ and apply the
+  # `with_tla` build-tag instrumentation; see harness-gen skill / docs.
+  repo_path: "artifacts/etcd"
+
+  # Semantic scope of evaluation. These are canonical names for the
+  # behaviors being evaluated. Agent maps them to whatever the spec
+  # calls them. Locks scope across runs so specs are comparable.
+  target_actions:
+    - ElectionTimeout
+    - HandleVoteRequest
+    - ClientProposal
+    - HandleAppendEntries
+    - HandleHeartbeat
+
+  # Harness info (for regenerating traces when agent needs compliant ones).
+  harness:
+    instrumentation_file: "tla_spec_trace.go"
+    test_file: "tla_trace_test.go"
+    run_command: "go test -tags with_tla -run 'TestTLATrace_' -count=1 -v ."
+    traces_output_env: "TRACES_DIR"

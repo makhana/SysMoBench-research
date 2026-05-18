@@ -1,0 +1,220 @@
+"""
+Common result types for evaluation framework.
+"""
+
+import time
+from typing import Dict, Any, List, Optional
+from abc import ABC, abstractmethod
+
+
+class EvaluationResult(ABC):
+    """Base class for all evaluation results"""
+    
+    def __init__(self, task_name: str, method_name: str, model_name: str):
+        self.task_name = task_name
+        self.method_name = method_name
+        self.model_name = model_name
+        self.timestamp = time.time()
+        self.overall_success = False
+    
+    @abstractmethod
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert result to dictionary for serialization"""
+        pass
+
+
+class SyntaxEvaluationResult(EvaluationResult):
+    """Result of syntax-level evaluation"""
+    
+    def __init__(self, task_name: str, method_name: str, model_name: str):
+        super().__init__(task_name, method_name, model_name)
+        
+        # Generation results
+        self.generation_successful = False
+        self.generation_time = 0.0
+        self.generation_error = None
+        self.generated_specification = None
+        
+        # Compilation results
+        self.compilation_successful = False
+        self.compilation_time = 0.0
+        self.syntax_errors = []
+        self.semantic_errors = []
+        self.compilation_output = ""
+        
+        # Action decomposition results (for action_decomposition metric)
+        self.total_actions = 0
+        self.successful_actions = 0
+        self.action_success_rate = 0.0
+        self.action_results = []  # List of ActionValidationResult objects
+        self.total_variables_added = 0
+        self.total_functions_added = 0
+        self.total_recovery_attempts = 0
+        
+        # Legacy compatibility
+        self.compilation_errors = []
+    
+    def to_dict(self) -> Dict[str, Any]:
+        result = {
+            "task_name": self.task_name,
+            "method_name": self.method_name,
+            "model_name": self.model_name,
+            "timestamp": self.timestamp,
+            "generation": {
+                "successful": self.generation_successful,
+                "time_seconds": self.generation_time,
+                "error": self.generation_error,
+                "specification_length": len(self.generated_specification) if self.generated_specification else 0
+            },
+            "compilation": {
+                "successful": self.compilation_successful,
+                "time_seconds": self.compilation_time,
+                "syntax_errors": self.syntax_errors,
+                "semantic_errors": self.semantic_errors,
+                "syntax_error_count": len(self.syntax_errors),
+                "semantic_error_count": len(self.semantic_errors),
+                "total_error_count": len(self.compilation_errors),
+                "output_length": len(self.compilation_output)
+            },
+            "overall": {
+                "successful": self.overall_success,
+                "total_time_seconds": self.generation_time + self.compilation_time
+            }
+        }
+        
+        # Add action decomposition metrics if available
+        if self.total_actions > 0:
+            result["action_decomposition"] = {
+                "total_actions": self.total_actions,
+                "successful_actions": self.successful_actions,
+                "action_success_rate": self.action_success_rate,
+                "variables_added": self.total_variables_added,
+                "functions_added": self.total_functions_added,
+                "recovery_attempts": self.total_recovery_attempts,
+                "individual_results": [
+                    {
+                        "action_name": ar.action_name,
+                        "successful": ar.validation_result.success,
+                        "syntax_errors": len(ar.validation_result.syntax_errors),
+                        "semantic_errors": len(ar.validation_result.semantic_errors),
+                        "variables_added": ar.variables_added,
+                        "functions_added": ar.functions_added,
+                        "recovery_attempts": ar.recovery_attempts
+                    } for ar in self.action_results
+                ]
+            }
+        
+        return result
+
+
+class SemanticEvaluationResult(EvaluationResult):
+    """Result of semantic-level evaluation"""
+    
+    def __init__(self, task_name: str, method_name: str, model_name: str):
+        super().__init__(task_name, method_name, model_name)
+        
+        # Generation results (for compatibility with syntax evaluation)
+        self.generation_time = 0.0
+        
+        # Invariant generation
+        self.invariant_generation_successful = False
+        self.invariant_generation_time = 0.0
+        self.invariant_generation_error = None
+        self.generated_invariants = []
+        
+        # Config generation
+        self.config_generation_successful = False
+        self.config_generation_time = 0.0
+        self.config_generation_error = None
+        self.config_file_path = None
+        
+        # Model checking
+        self.model_checking_successful = False
+        self.model_checking_time = 0.0
+        self.model_checking_error = None
+        self.states_explored = 0
+        self.invariant_violations = []
+        self.deadlock_found = False
+        
+        # File paths
+        self.specification_file = None
+        
+        # Custom data for additional information
+        self.custom_data = {}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "task_name": self.task_name,
+            "method_name": self.method_name,
+            "model_name": self.model_name,
+            "timestamp": self.timestamp,
+            "generation_time": self.generation_time,
+            "invariant_generation": {
+                "successful": self.invariant_generation_successful,
+                "time_seconds": self.invariant_generation_time,
+                "error": self.invariant_generation_error,
+                "invariants_count": len(self.generated_invariants)
+            },
+            "config_generation": {
+                "successful": self.config_generation_successful,
+                "time_seconds": self.config_generation_time,
+                "error": self.config_generation_error,
+                "config_file": self.config_file_path
+            },
+            "model_checking": {
+                "successful": self.model_checking_successful,
+                "time_seconds": self.model_checking_time,
+                "error": self.model_checking_error,
+                "states_explored": self.states_explored,
+                "invariant_violations": self.invariant_violations,
+                "deadlock_found": self.deadlock_found
+            },
+            "overall": {
+                "successful": self.overall_success,
+                "total_time_seconds": (self.invariant_generation_time + 
+                                     self.config_generation_time + 
+                                     self.model_checking_time)
+            },
+            "files": {
+                "specification": self.specification_file,
+                "config": self.config_file_path
+            },
+            "custom_data": self.custom_data
+        }
+
+
+class TransitionValidationResult(EvaluationResult):
+    """Result of per-action transition validation against captured system traces."""
+
+    def __init__(self, task_name: str, method_name: str, model_name: str):
+        super().__init__(task_name, method_name, model_name)
+
+        self.generation_time = 0.0
+
+        # Per-action pass rates (action_name -> rate in [0, 1]).
+        self.per_action_pass_rates: Dict[str, float] = {}
+        self.total_passed = 0
+        self.total_windows = 0
+        self.score = 0.0  # total_passed / total_windows
+
+        self.workspace_dir: Optional[str] = None
+        self.error_message: Optional[str] = None
+        self.elapsed_seconds = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "task_name": self.task_name,
+            "method_name": self.method_name,
+            "model_name": self.model_name,
+            "timestamp": self.timestamp,
+            "score": self.score,
+            "total_passed": self.total_passed,
+            "total_windows": self.total_windows,
+            "per_action_pass_rates": self.per_action_pass_rates,
+            "workspace_dir": self.workspace_dir,
+            "elapsed_seconds": self.elapsed_seconds,
+            "overall": {
+                "successful": self.overall_success,
+                "error": self.error_message,
+            },
+        }

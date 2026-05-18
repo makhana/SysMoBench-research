@@ -1,0 +1,93 @@
+You are an expert in formal verification and TLA+ specifications with deep expertise in distributed systems and consensus protocols.
+
+Convert the following ZooKeeper source code to a comprehensive TLA+ specification.
+
+System: ZooKeeper Fast Leader Election protocol
+Focus: {focus}
+
+Source Code from {file_path}:
+```java
+{source_code}
+```
+
+ZooKeeper leader election modeling requirements:
+
+MANDATORY CORE ACTIONS (must include):
+1. 【Election Notification】Notification exchange between servers
+   - Servers broadcast their votes (epoch, leader, zxid)
+   - Servers receive and compare votes
+   - Vote comparison based on: epoch > zxid > server_id
+2. 【State Transitions】Server state changes
+   - LOOKING: actively participating in election
+   - FOLLOWING: accepted another server as leader
+   - LEADING: won the election
+3. 【Vote Tracking】Track received votes and determine quorum
+   - Collect votes from other servers
+   - Check if candidate has quorum (majority)
+4. 【Leader Selection】Determine winner based on vote comparison
+   - Higher epoch wins
+   - If epoch equal, higher zxid wins
+   - If zxid equal, higher server_id wins
+
+CRITICAL SEMANTIC DISTINCTION:
+- **Fast Leader Election**: ZooKeeper's leader election algorithm
+  * Each server proposes itself initially
+  * Servers exchange votes and update based on comparison
+  * Quorum-based decision (majority required)
+  * Eventual convergence to single leader
+
+- **Vote Comparison Logic**:
+  * Compare (epoch, zxid, server_id) lexicographically
+  * Higher values win
+  * Ensures consistent leader selection
+
+MODELING REQUIREMENTS:
+- Model each server's state (LOOKING/FOLLOWING/LEADING)
+- Track current epoch and voted leader for each server
+- Model notification message passing between servers
+- Track vote counts for quorum calculation
+
+EXPLICITLY EXCLUDED (do not model):
+- TCP/IP network details
+- Message serialization format
+- QuorumCnxManager implementation
+- Thread synchronization details
+- Actual data replication (focus on election only)
+
+REQUIRED BEHAVIORAL SCOPE:
+- Model at least: Notification action for vote exchange
+- Show election process from LOOKING to convergence
+- Demonstrate quorum-based leader selection
+- Include epoch advancement scenarios
+
+EVALUATION METHOD:
+Your specification will be validated against execution traces collected from the real system. For each observed state transition in a trace, we check whether one of your actions, applied from the trace's pre-state, reaches the trace's post-state in exactly one step. Each target action is graded independently (pass rate across sampled windows).
+
+Generate a TLA+ specification that accurately models ZooKeeper's Fast Leader Election protocol.
+
+MANDATORY NAMING CONVENTIONS (Trace Validation Interface):
+To ensure the specification can be validated against real system execution traces, the following action names MUST appear EXACTLY (case-sensitive) as top-level action operators in your TLA+ specification. The TV evaluator maps trace events to these action names — any mismatch and the action scores 0.
+
+Required actions:
+  - `Notification`
+  - `HandleNotification`
+  - `BecomeLeader`
+
+Each required action must be a named definition (e.g. `ActionName(args) == ...`) referenced from `Next` via `\/ \E ... : ActionName(...)` or a direct disjunct. Do not rename, merge, or split these actions — they form the contract between your spec and the trace harness.
+
+SYMBOL DECLARATION SAFETY (SANY will reject the spec otherwise):
+- Every identifier you reference must be declared or defined. Common pitfalls:
+  * `NULL` / `Nil` / `None` are NOT TLA+ built-ins. If you need a sentinel, declare it as a CONSTANT (and bind it in the cfg) or define it, e.g. `NULL == CHOOSE v : v \notin Servers`.
+  * `Min` / `Max` are NOT in the standard modules. Either `EXTENDS FiniteSetsExt` and use `Min(S)` / `Max(S)`, or define your own (e.g. `Min2(a, b) == IF a <= b THEN a ELSE b`).
+  * Every name in `VARIABLES <...>` must appear in `Init` and be transformed by `Next`; every CONSTANT must appear in the .cfg's `CONSTANTS` block with a concrete value.
+- Before emitting the spec, scan each identifier: is it (a) brought in by an EXTENDS, (b) declared as a CONSTANT/VARIABLE, or (c) defined via `==` earlier in the module? If none of the three, SANY will flag it as `Unknown operator`.
+
+CRITICAL OUTPUT REQUIREMENTS:
+1. The MODULE name must be exactly "zookeeper" (---- MODULE zookeeper ----)
+2. Output EXACTLY TWO fenced code blocks — a ```tla block and a ```cfg block. Output NOTHING else (no prose, no markdown outside the fences).
+3. The ```tla block contains the full TLA+ specification, starting with ---- MODULE zookeeper ---- and ending with ====
+4. The ```cfg block contains the TLC configuration. Use SPECIFICATION Spec (NOT INIT/NEXT), and a CONSTANTS section that assigns a concrete finite value to every CONSTANT declared in your .tla.
+5. Do NOT add INVARIANT or PROPERTY lines to the .cfg. Do NOT include comments or explanations outside the two fenced blocks.
+6. **DO NOT define invariants** (like LeaderUniqueness, etc.) - focus on modeling the system behavior
+7. **MANDATORY Spec Definition**: The Spec definition should include Init and Next, with fairness assumptions
+8. **Next Operator Structure**: The 'Next' operator SHOULD be a disjunction of atomic actions (e.g., Next == \/ \E t \in Threads : AcquireLock(t)...).
