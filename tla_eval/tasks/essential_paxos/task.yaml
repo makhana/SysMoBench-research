@@ -16,7 +16,7 @@ repository:
   branch: "master"
   # Pin a specific commit for reproducibility (artifacts/ is gitignored
   # so the only record of which version was used lives here).
-  commit: "[paste cocagne/paxos commit hash here]"
+  commit: "cf3b5a2bf6ece39d2432b7ebfe1efb2e232bc2df"
 
 source_files:
   - path: "paxos/essential.py"

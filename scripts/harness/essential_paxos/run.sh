@@ -33,7 +33,7 @@ echo "[run.sh] TRACES_DIR:  $TRACES_DIR" >&2
 export PYTHONPATH="$REPO_PATH:${PYTHONPATH:-}"
 export TRACES_DIR
 
-python3 "$SCRIPT_DIR/run.py"
+python3 "$SCRIPT_DIR/parse_traces.py"
 
 # Quick sanity report — each scenario should end with a HandleAccepted that
 # writes a final_value (i.e. consensus was reached).
