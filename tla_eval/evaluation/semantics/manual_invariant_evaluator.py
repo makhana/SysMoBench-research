@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class InvariantTemplate:
     """Represents a single invariant template from the YAML file"""
     name: str
-    type: str  # "safety" or "liveness" 
+    type: str  # "safety", "temporal_safety", or "liveness"
     natural_language: str
     formal_description: str
     tla_example: str
@@ -75,8 +75,9 @@ class InvariantTemplateLoader:
         with open(invariants_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
         
+        entries = data if isinstance(data, list) else (data or {}).get('invariants', [])
         templates = []
-        for inv_data in data.get('invariants', []):
+        for inv_data in entries:
             template = InvariantTemplate(
                 name=inv_data['name'],
                 type=inv_data['type'],
@@ -438,6 +439,11 @@ For each invariant template in `templates.yaml`:
 - Use only variables and constants that exist in the specification
 - The invariant must be a boolean expression
 
+### For TEMPORAL_SAFETY invariants:
+- MUST preserve the temporal safety formula from the template
+- Can reference primed variables and use temporal operators such as `[]`
+- These formulas are checked as TLC `PROPERTY` clauses
+
 ### For LIVENESS invariants:
 - MUST use temporal operators like `<>` (eventually), `[]` (always), `~>` (leads-to)
 - Can reference primed variables if needed
@@ -618,7 +624,7 @@ class StaticConfigGenerator:
         Args:
             tla_content: TLA+ specification content
             invariant_name: Name of the invariant to add
-            invariant_type: Type of invariant ("safety" or "liveness")
+            invariant_type: Type of invariant ("safety", "temporal_safety", or "liveness")
             task_name: Task name for caching
             model_name: Model name for base config generation
             
@@ -653,7 +659,7 @@ class StaticConfigGenerator:
         Args:
             base_config: Pre-generated base configuration
             invariant_name: Name of the invariant to add
-            invariant_type: Type of invariant ("safety" or "liveness")
+            invariant_type: Type of invariant ("safety", "temporal_safety", or "liveness")
             
         Returns:
             Tuple of (success, config_content, error_message)
@@ -700,8 +706,8 @@ class StaticConfigGenerator:
         """
         Add a specific invariant to the base config based on its type.
         
-        For safety invariants: add to INVARIANT section
-        For liveness invariants: add to PROPERTY section
+        For state safety invariants: add to INVARIANT section
+        For temporal safety and liveness properties: add to PROPERTY section
         """
         lines = base_config.split('\n')
         result_lines = []
@@ -1122,8 +1128,9 @@ def _load_generic_templates(templates_dir: str, task_name: str, example_field: s
         raise FileNotFoundError(f"Invariants file not found: {path}")
     with open(path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
+    entries = data if isinstance(data, list) else (data or {}).get('invariants', [])
     out: List = []
-    for entry in data.get('invariants', []):
+    for entry in entries:
         out.append(
             GenericTemplate(
                 name=entry['name'],

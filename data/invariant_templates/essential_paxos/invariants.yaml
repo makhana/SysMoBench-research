@@ -4,7 +4,7 @@
 #
 # Schema (from docs/add_new_system.md):
 #   - name:              short identifier, becomes the TLA+ operator name
-#     type:              "safety" or "liveness"
+#     type:              "safety", "temporal_safety", or "liveness"
 #     natural_language:  plain-English statement
 #     formal_description: math / pseudocode
 #     tla_example:       TLA+ snippet using angle-bracket placeholders
@@ -14,7 +14,7 @@
 # Placeholder glossaries are inlined as TLA+ comments at the top of each
 # tla_example block, since the schema has no dedicated field for them.
 #
-# Only safety invariants are included; liveness is out of scope per the
+# Only safety properties are included; liveness is out of scope per the
 # project scoping document (Paxos liveness requires a stable leader and
 # fairness, neither modeled by essential.py).
 
@@ -86,7 +86,7 @@
               => v1 = v2
 
 - name: "PromiseMonotonic"
-  type: "safety"
+  type: "temporal_safety"
   natural_language: >
     An acceptor's promised proposal id is non-decreasing over time. Once
     an acceptor has promised not to accept proposals below some n, it

@@ -1,6 +1,6 @@
 # SysMoBench
 
-SysMoBench is a benchmark for evaluating AI on formally modeling complex real-world systems. It targets TLA+, the de facto specification language for concurrent and distributed systems, and automates four kinds of evaluation: syntax checking with SANY, runtime model checking with TLC, transition validation against captured system traces, and verification of expert-written invariants. Eleven systems are included, ranging from kernel-level synchronization primitives in the Asterinas operating system to industrially deployed consensus implementations such as etcd Raft, Redis Raft, and Xline CURP.
+SysMoBench is a benchmark for evaluating AI on formally modeling complex real-world systems. It targets TLA+, the de facto specification language for concurrent and distributed systems, and automates four kinds of evaluation: syntax checking with SANY, runtime model checking with TLC, transition validation against captured system traces, and verification of expert-written invariants. Twelve systems are included, ranging from kernel-level synchronization primitives in the Asterinas operating system to consensus implementations such as Essential Paxos, etcd Raft, Redis Raft, and Xline CURP.
 
 The corresponding paper appears at ICLR 2026: ["SysMoBench: Evaluating AI on Formally Modeling Complex Real-World Systems"](https://openreview.net/forum?id=SAeaTz8YoM). Up-to-date scores are at [sysmobench.com](https://sysmobench.com).
 
@@ -56,7 +56,7 @@ A single (system, model, metric) cell:
 sysmobench --task spin --method direct_call --model claude --metric compilation_check
 ```
 
-A full sweep across all 11 systems:
+A full sweep across all 12 systems:
 
 ```
 python3 scripts/run_batch_experiment.py --all --model claude
@@ -73,6 +73,7 @@ See [`docs/Usage.md`](docs/Usage.md) for details.
 | `spin`, `mutex`, `rwmutex` | Asterinas OS synchronization primitives |
 | `ringbuffer` | Concurrent queue |
 | `etcd`, `redisraft` | Raft consensus |
+| `essential_paxos` | Single-decree Paxos consensus |
 | `curp` | Xline CURP replication |
 | `zookeeper` | Distributed coordination |
 | `dqueue`, `locksvc`, `raftkvs` | PGo-compiled distributed systems |

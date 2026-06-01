@@ -52,7 +52,8 @@ logger = logging.getLogger(__name__)
 # All available systems
 ALL_SYSTEMS = [
     "spin", "etcd", "mutex", "rwmutex", "curp", "dqueue",
-    "locksvc", "raftkvs", "redisraft", "ringbuffer", "zookeeper"
+    "locksvc", "raftkvs", "redisraft", "ringbuffer", "zookeeper",
+    "essential_paxos"
 ]
 
 # Supported generation methods. Only `direct_call` (single-shot API call via

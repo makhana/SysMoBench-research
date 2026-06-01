@@ -3,7 +3,7 @@
 #     tla_eval/tasks/essential_paxos/task.yaml
 #
 # Modeled on tla_eval/tasks/raftkvs/task.yaml (PGo distributed system,
-# closest precedent for an externally-instrumented native harness).
+# closest precedent for a native source-patched harness).
 
 name: "essential_paxos"
 description: "Single-decree Paxos consensus, educational reference from cocagne/paxos"
@@ -33,7 +33,7 @@ metadata:
 
 # TV (transition validation) configuration.
 tv:
-  repo_path: "data/repositories/cocagne_paxos"
+  repo_path: "artifacts/essential_paxos/paxos"
 
   # Spec actions in scope. The agent maps these to whatever names the
   # generated spec actually uses.
@@ -46,16 +46,19 @@ tv:
 
   harness:
     type: "native"
-    instrumentation_file: "scripts/harness/essential_paxos/parse_traces.py"
-    test_file: "scripts/harness/essential_paxos/parse_traces.py"
+    instrumentation_file: "scripts/harness/essential_paxos/tla_trace.py"
+    source_patch: "scripts/harness/essential_paxos/instrumentation.patch"
+    apply_script: "scripts/harness/essential_paxos/apply.sh"
+    test_file: "scripts/harness/essential_paxos/run.py"
     test_target: "main"
     run_command: "bash scripts/harness/essential_paxos/run.sh"
+    validation_file: "scripts/harness/essential_paxos/validate_traces.py"
     traces_output_env: "TRACES_DIR"
     traces_default_dir: "artifacts/essential_paxos/traces"
     instrumentation_doc: "tla_eval/tasks/essential_paxos/INSTRUMENTATION.md"
 
     # Label → spec action mapping. Labels are the method-qualified names
-    # of cocagne's role methods; parse_traces is unnecessary because the
+    # of cocagne's role methods; a separate parser is unnecessary because the
     # Python harness emits canonical NDJSON directly.
     trace_action_map:
       "Proposer.prepare": "Prepare"
@@ -65,7 +68,7 @@ tv:
       "Learner.recv_accepted": "HandleAccepted"
 
     coverage_gaps:
-      - "Single-process simulation; no real network. Loss / reorder are injected by the harness, not by an OS-level network stack."
-      - "Four scenarios (happy, duel, loss, late); a real-world deployment would exercise more concurrent-proposer races."
-      - "Learner.recv_accepted is invoked via a Python-3 sentinel patch (TracedLearner) to fix a Py2-vs-Py3 None-comparison bug in upstream essential.py. The protocol semantics are unchanged."
+      - "Single-process transport; upstream essential.py intentionally delegates networking. Loss / duplicate / reorder are injected by the harness queue, not by an OS-level network stack."
+      - "Five deterministic scenarios (happy, duel, loss, late, duplicate); a broader matrix could exercise more concurrent-proposer races."
+      - "The source patch makes legacy Python-2 None-versus-ProposalID comparisons explicit for Python 3 while preserving protocol semantics."
       - "No coverage of crash / restart paths; essential.py has no persistence layer (those live in durable.py, which is out of scope)."

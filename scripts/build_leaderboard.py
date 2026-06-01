@@ -29,7 +29,8 @@ TV_ROOT = PROJECT_ROOT / "tv-workspaces"
 OUT_ROOT = PROJECT_ROOT / "docs" / "leaderboard"
 
 SYSTEMS = ["spin", "etcd", "curp", "dqueue", "locksvc", "mutex",
-           "raftkvs", "redisraft", "ringbuffer", "rwmutex", "zookeeper"]
+           "raftkvs", "redisraft", "ringbuffer", "rwmutex", "zookeeper",
+           "essential_paxos"]
 
 # Model canonicalization: collapse config-level model names that are really the
 # same underlying model accessed via different routes (proxy vs direct API) or
@@ -528,7 +529,7 @@ def write_json(rows, path: Path):
 
 BENCHMARK_SYSTEMS = [
     "spin", "mutex", "rwmutex", "dqueue", "ringbuffer", "locksvc",
-    "curp", "raftkvs", "redisraft", "zookeeper", "etcd",
+    "curp", "raftkvs", "redisraft", "zookeeper", "etcd", "essential_paxos",
 ]
 
 
@@ -537,7 +538,7 @@ def write_paper_summary_csv(rows, path: Path):
 
     Includes ONLY models that have FINISHED the full pipeline:
 
-    1. Phase A ran on every one of the 11 benchmark systems
+    1. Phase A ran on every configured benchmark system
        (phase1_score is not None for every system).
 
     2. For every system whose P2 runtime_check passed (rc=True),
@@ -556,7 +557,7 @@ def write_paper_summary_csv(rows, path: Path):
         Phase 2 = runtime
         Phase 3 = conformance (TV, zero-tolerance)
         Phase 4 = invariant correctness (agent-translated invariants)
-    Means use fixed denominator = 11 (rule: "没跑的算零分").
+    Means use a fixed denominator of len(BENCHMARK_SYSTEMS) (rule: "没跑的算零分").
     Cost excluded — inconsistent across workspaces.
     """
     by_model = {}
@@ -566,7 +567,7 @@ def write_paper_summary_csv(rows, path: Path):
         by_model.setdefault(r.model, []).append(r)
 
     def is_complete(items):
-        # Phase A on all 11 systems?
+        # Phase A on all configured benchmark systems?
         have = {r.system for r in items if r.phase1_score is not None}
         if not set(BENCHMARK_SYSTEMS).issubset(have):
             return False

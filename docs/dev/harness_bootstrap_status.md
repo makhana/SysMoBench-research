@@ -147,3 +147,20 @@ Per-task completion of the 9-task harness bootstrap, per
 - Open issues:
   - Demo replay has no vote-reject scenarios; `HandleNotification` only scored on grant path.
   - Only 2 `BecomeLeader` windows per run (one per successful election); richer scenarios would need upgrades to `generator/generate_traces.sh`.
+
+## essential_paxos
+- Category: A (distributed message-passing; deterministic in-memory transport)
+- `artifacts/essential_paxos/paxos/`: `cocagne/paxos` at `cf3b5a2bf6ece39d2432b7ebfe1efb2e232bc2df`
+- Harness orchestration:
+  - `scripts/harness/essential_paxos/instrumentation.patch` wraps the real `Proposer`, `Acceptor`, and `Learner` handlers with trace scopes and makes Python-2-era `None` comparisons explicit for Python 3.
+  - `scripts/harness/essential_paxos/tla_trace.py` emits mutex-protected NDJSON records with real monotonic timestamps, full post-state snapshots, incoming messages, reads, and write deltas.
+  - `scripts/harness/essential_paxos/run.py` drives five deterministic scenarios through the upstream networking interface: happy, duel, loss, late delivery, and duplicate delivery.
+  - `scripts/harness/essential_paxos/apply.sh`, `run.sh`, and `validate_traces.py` apply the overlay idempotently, generate fresh traces, and validate their structure.
+- Events emitted: `Prepare`, `HandlePrepare`, `HandlePromise`, `HandleAccept`, `HandleAccepted`
+- Smoke: **PASS** — 5 trace files, 73 events total; all 5 target actions present. The artifact-level `cd artifacts/essential_paxos && bash run.sh` entrypoint also passes on an already-applied overlay.
+- Upstream regression suite: **PASS** — 22 `test_essential.py` tests pass under Python 3 after instrumentation.
+- TV smoke: launcher dry-run **PASS** — workspace creation, artifact repo resolution, and the exact five-action TV scope are correct. A scored TV pass still requires a generated Essential Paxos TLA+ spec.
+- Open issues:
+  - Transport loss, duplication, and reordering are injected by the harness queue, not an OS network.
+  - `SetProposal` is intentionally auxiliary and outside the TV action scope.
+  - Crash recovery and durability live outside upstream `essential.py` and remain out of scope.

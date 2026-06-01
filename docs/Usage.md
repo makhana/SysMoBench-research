@@ -31,7 +31,7 @@ Outputs land under `experiments/batch_<timestamp>/<system>/run_*.json`.
 
 | Flag | Purpose |
 |---|---|
-| `--all` / `--systems <name>...` | All 11 systems or a subset |
+| `--all` / `--systems <name>...` | All 12 systems or a subset |
 | `--model <id>` | Generation model (entry in `config/models.yaml`) |
 | `--runs <N>` | Runs per (model, system); default 5 |
 | `--threads <N>` | Parallelism; default 5 |
@@ -39,7 +39,7 @@ Outputs land under `experiments/batch_<timestamp>/<system>/run_*.json`.
 | `--tv-agent`, `--tv-model`, `--tv-budget`, `--tv-timeout` | Transition-validation knobs |
 | `--inv-model <id>` | Phase-4 translator model |
 
-Transition validation costs roughly **\$1–4 per (model, system) cell** through the coding-agent CLI; a five-model sweep across all 11 systems is in the low hundreds of USD.
+Transition validation costs roughly **\$1–4 per (model, system) cell** through the coding-agent CLI; a five-model sweep across all 12 systems is in the low hundreds of USD.
 
 ## Transition validation
 

@@ -1,0 +1,196 @@
+--- a/paxos/essential.py
++++ b/paxos/essential.py
+@@ -7,6 +7,7 @@
+ '''
+
+ import collections
++from paxos import tla_trace
+
+ # In order for the Paxos algorithm to function, all proposal ids must be
+ # unique. A simple way to ensure this is to include the proposer's UID
+@@ -77,12 +78,14 @@
+         Sends a prepare request to all Acceptors as the first step in attempting to
+         acquire leadership of the Paxos instance.
+         '''
+-        self.promises_rcvd = set()
+-        self.proposal_id   = ProposalID(self.next_proposal_number, self.proposer_uid)
+-
+-        self.next_proposal_number += 1
++        with tla_trace.action('Prepare', 'Proposer.prepare', self.proposer_uid,
++                              'Proposer', lambda: tla_trace.proposer_state(self)):
++            self.promises_rcvd = set()
++            self.proposal_id   = ProposalID(self.next_proposal_number, self.proposer_uid)
++
++            self.next_proposal_number += 1
+
+-        self.messenger.send_prepare(self.proposal_id)
++            self.messenger.send_prepare(self.proposal_id)
+
+
+     def recv_promise(self, from_uid, proposal_id, prev_accepted_id, prev_accepted_value):
+@@ -92,24 +95,30 @@
+
+         # Ignore the message if it's for an old proposal or we have already received
+         # a response from this Acceptor
+-        if proposal_id != self.proposal_id or from_uid in self.promises_rcvd:
+-            return
++        with tla_trace.action(
++                'HandlePromise', 'Proposer.recv_promise', self.proposer_uid,
++                'Proposer', lambda: tla_trace.proposer_state(self),
++                {'from_': from_uid, 'proposal_id': proposal_id,
++                 'prev_accepted_id': prev_accepted_id,
++                 'prev_accepted_value': prev_accepted_value}):
++            if proposal_id != self.proposal_id or from_uid in self.promises_rcvd:
++                return
+
+-        self.promises_rcvd.add( from_uid )
+-
+-        if prev_accepted_id > self.last_accepted_id:
+-            self.last_accepted_id = prev_accepted_id
+-            # If the Acceptor has already accepted a value, we MUST set our proposal
+-            # to that value.
+-            if prev_accepted_value is not None:
+-                self.proposed_value = prev_accepted_value
+-
+-        if len(self.promises_rcvd) == self.quorum_size:
++            self.promises_rcvd.add( from_uid )
+
+-            if self.proposed_value is not None:
+-                self.messenger.send_accept(self.proposal_id, self.proposed_value)
++            if prev_accepted_id is not None and (self.last_accepted_id is None or prev_accepted_id > self.last_accepted_id):
++                self.last_accepted_id = prev_accepted_id
++                # If the Acceptor has already accepted a value, we MUST set our proposal
++                # to that value.
++                if prev_accepted_value is not None:
++                    self.proposed_value = prev_accepted_value
+
++            if len(self.promises_rcvd) == self.quorum_size:
++
++                if self.proposed_value is not None:
++                    self.messenger.send_accept(self.proposal_id, self.proposed_value)
+
++
+
+ class Acceptor (object):
+
+@@ -123,24 +132,33 @@
+         '''
+         Called when a Prepare message is received from a Proposer
+         '''
+-        if proposal_id == self.promised_id:
+-            # Duplicate prepare message
+-            self.messenger.send_promise(from_uid, proposal_id, self.accepted_id, self.accepted_value)
+-
+-        elif proposal_id > self.promised_id:
+-            self.promised_id = proposal_id
+-            self.messenger.send_promise(from_uid, proposal_id, self.accepted_id, self.accepted_value)
++        with tla_trace.action('HandlePrepare', 'Acceptor.recv_prepare',
++                              getattr(self, 'trace_uid', None), 'Acceptor',
++                              lambda: tla_trace.acceptor_state(self),
++                              {'from_': from_uid, 'proposal_id': proposal_id}):
++            if proposal_id == self.promised_id:
++                # Duplicate prepare message
++                self.messenger.send_promise(from_uid, proposal_id, self.accepted_id, self.accepted_value)
++
++            elif self.promised_id is None or proposal_id > self.promised_id:
++                self.promised_id = proposal_id
++                self.messenger.send_promise(from_uid, proposal_id, self.accepted_id, self.accepted_value)
+
+
+     def recv_accept_request(self, from_uid, proposal_id, value):
+         '''
+         Called when an Accept! message is received from a Proposer
+         '''
+-        if proposal_id >= self.promised_id:
+-            self.promised_id     = proposal_id
+-            self.accepted_id     = proposal_id
+-            self.accepted_value  = value
+-            self.messenger.send_accepted(proposal_id, self.accepted_value)
++        with tla_trace.action('HandleAccept', 'Acceptor.recv_accept_request',
++                              getattr(self, 'trace_uid', None), 'Acceptor',
++                              lambda: tla_trace.acceptor_state(self),
++                              {'from_': from_uid, 'proposal_id': proposal_id,
++                               'value': value}):
++            if self.promised_id is None or proposal_id >= self.promised_id:
++                self.promised_id     = proposal_id
++                self.accepted_id     = proposal_id
++                self.accepted_value  = value
++                self.messenger.send_accepted(proposal_id, self.accepted_value)
+
+
+
+@@ -163,40 +181,45 @@
+         '''
+         Called when an Accepted message is received from an acceptor
+         '''
+-        if self.final_value is not None:
+-            return # already done
++        with tla_trace.action('HandleAccepted', 'Learner.recv_accepted',
++                              getattr(self, 'trace_uid', None), 'Learner',
++                              lambda: tla_trace.learner_state(self),
++                              {'from_': from_uid, 'proposal_id': proposal_id,
++                               'value': accepted_value}):
++            if self.final_value is not None:
++                return # already done
+
+-        if self.proposals is None:
+-            self.proposals = dict()
+-            self.acceptors = dict()
+-
+-        last_pn = self.acceptors.get(from_uid)
++            if self.proposals is None:
++                self.proposals = dict()
++                self.acceptors = dict()
++
++            last_pn = self.acceptors.get(from_uid)
+
+-        if not proposal_id > last_pn:
+-            return # Old message
++            if last_pn is not None and not proposal_id > last_pn:
++                return # Old message
+
+-        self.acceptors[ from_uid ] = proposal_id
+-
+-        if last_pn is not None:
+-            oldp = self.proposals[ last_pn ]
+-            oldp[1] -= 1
+-            if oldp[1] == 0:
+-                del self.proposals[ last_pn ]
++            self.acceptors[ from_uid ] = proposal_id
++
++            if last_pn is not None:
++                oldp = self.proposals[ last_pn ]
++                oldp[1] -= 1
++                if oldp[1] == 0:
++                    del self.proposals[ last_pn ]
+
+-        if not proposal_id in self.proposals:
+-            self.proposals[ proposal_id ] = [0, 0, accepted_value]
++            if not proposal_id in self.proposals:
++                self.proposals[ proposal_id ] = [0, 0, accepted_value]
+
+-        t = self.proposals[ proposal_id ]
++            t = self.proposals[ proposal_id ]
+
+-        assert accepted_value == t[2], 'Value mismatch for single proposal!'
+-
+-        t[0] += 1
+-        t[1] += 1
++            assert accepted_value == t[2], 'Value mismatch for single proposal!'
++
++            t[0] += 1
++            t[1] += 1
+
+-        if t[0] == self.quorum_size:
+-            self.final_value       = accepted_value
+-            self.final_proposal_id = proposal_id
+-            self.proposals         = None
+-            self.acceptors         = None
++            if t[0] == self.quorum_size:
++                self.final_value       = accepted_value
++                self.final_proposal_id = proposal_id
++                self.proposals         = None
++                self.acceptors         = None
+
+-            self.messenger.on_resolution( proposal_id, accepted_value )
++                self.messenger.on_resolution( proposal_id, accepted_value )

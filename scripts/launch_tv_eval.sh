@@ -72,6 +72,12 @@ ACTIONS=""
 DRY_RUN=false
 KEEP_REPO=false
 
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+if ! "$PYTHON_BIN" -c 'import yaml' >/dev/null 2>&1 \
+    && [[ -x "$PROJECT_ROOT/.venv/bin/python" ]]; then
+  PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+fi
+
 for arg in "$@"; do
   case "$arg" in
     --spec=*)           SPEC_PATH="${arg#*=}" ;;
@@ -103,7 +109,7 @@ if [[ -n "$TASK_NAME" ]]; then
   if [[ -f "$TASK_YAML" ]]; then
     # Fill in --repo and --actions from task.yaml's tv: block if not overridden
     if [[ -z "$REPO_PATH" ]]; then
-      REPO_PATH=$(python3 -c "
+      REPO_PATH=$("$PYTHON_BIN" -c "
 import yaml, sys, os
 with open('$TASK_YAML') as f:
     d = yaml.safe_load(f) or {}
@@ -114,7 +120,7 @@ print(r if r else '')
 " 2>/dev/null)
     fi
     if [[ -z "$ACTIONS" ]]; then
-      ACTIONS=$(python3 -c "
+      ACTIONS=$("$PYTHON_BIN" -c "
 import yaml
 with open('$TASK_YAML') as f:
     d = yaml.safe_load(f) or {}

@@ -1,72 +1,33 @@
-TASK
-====
+You are a TLA+ expert specializing in Paxos safety. Translate each expert
+template into an operator over the generated specification.
 
-Given the TLA+ specification and the invariant template below, produce a
-TLA+ invariants module that concretizes every template invariant using the
-variable names actually used by the spec.
+## Target Specification
 
-The invariant template uses angle-bracket placeholders (e.g. `<Learners>`,
-`<decided(l)>`, `<NoValue>`). Each tla_example block in the template begins
-with TLA+ comments documenting what its placeholders refer to. Your job is
-to read the spec and substitute the spec's real names for these
-placeholders.
+$tla_specification
 
+## Invariants to Implement
 
-PROCEDURE
-=========
+$invariant_templates
 
-1. Read the spec and identify what it called each concept referenced by
-   the placeholders. For example:
-   - `<decided(l)>` may correspond to a variable like `decided[l]`,
-     `finalValue[l]`, `learnerValue[l]`, or to a derivation from the
-     message set (e.g. learners only "decide" implicitly when they have
-     seen a quorum of matching Accepted messages).
-   - `<promised_id(a)>` may be `promised[a]`, `maxPromise[a]`, or
-     `acceptorState[a].promised`.
-   - `<hasAccepted(a, n, v)>` may be a direct equality on the spec's
-     latest-acceptance variables, or a membership test in a history set,
-     depending on how the spec tracks acceptance.
+## Requirements
 
-2. Substitute the spec's names into each template invariant. For
-   predicate-shaped placeholders, resolve them into expressions over the
-   spec's variables using the resolution hints in the template's comments.
+1. Preserve every template name exactly.
+2. Map the template concepts to the specification's actual variables and data
+   structures. Preserve the intended safety property; do not weaken it merely
+   to fit a convenient representation.
+3. For type `safety`, return a state predicate suitable for TLC `INVARIANT`.
+4. For type `temporal_safety` or `liveness`, preserve the temporal formula;
+   these are checked under TLC `PROPERTY`.
+5. An invariant definition must be self-contained and may use `LET` bindings.
+   Do not return a separate module or auxiliary top-level definitions.
+6. If a faithful invariant cannot be represented by the generated state,
+   return the strongest faithful expression available and include a short TLA+
+   comment inside that invariant definition explaining the limitation.
 
-3. Output a single TLA+ module named `EssentialPaxosInvariants` that:
-   - EXTENDS `EssentialPaxos` (the module produced by the generation
-     prompt).
-   - Defines one operator per template invariant, with the exact names:
-     `Agreement`, `Validity`, `Stability`, `PromiseMonotonic`.
-   - Defines any auxiliary operators needed (e.g. a `ProposedValues`
-     definition if the spec does not already expose one).
+## Output Format
 
+Return JSON only:
 
-CORRECTNESS RULES
-=================
+{"invariants": ["Agreement == ...", "Validity == ..."]}
 
-- Preserve the operator names exactly. The TLC configuration references
-  them by name; renaming any of them breaks invariant verification.
-- If the spec's structure makes a template invariant impossible to express
-  without adding history variables (e.g. Stability when the spec only
-  retains the latest acceptance), emit the invariant with a TLA+ comment
-  block explaining what is missing, rather than inventing variables. A
-  reported limitation is more useful than a silently weakened invariant.
-- Do not add invariants that are not in the template, and do not omit any
-  invariant that is in the template.
-- `PromiseMonotonic` is a step-level property using the `[][...]_vars`
-  idiom, not a state predicate. Preserve this form; do not coerce it into
-  a state invariant unless the spec exposes explicit history (in which
-  case both forms are acceptable and the comment should note the choice).
-
-
-TLA+ SPECIFICATION
-==================
-{{TLA_SPEC}}
-
-
-INVARIANT TEMPLATE
-==================
-{{INVARIANT_TEMPLATE}}
-
-
-Output only the EssentialPaxosInvariants module, wrapped in a single ```tla
-code block. No prose before or after.
+Include one string for every provided template and no prose outside the JSON.

@@ -170,7 +170,8 @@ def main():
 
     (OUT_ROOT / "README.md").write_text(README_MD.strip() + "\n")
 
-    print(f"Wrote {len(index_rows)} cells ({len(paper_models)} models × 11 systems) "
+    system_count = len({r["system"] for r in index_rows})
+    print(f"Wrote {len(index_rows)} cells ({len(paper_models)} models x {system_count} systems) "
           f"to {OUT_ROOT.relative_to(PROJECT_ROOT)}")
     tv_count = sum(1 for r in index_rows if r["has_tv_report"])
     spec_count = sum(1 for r in index_rows if r["spec_file"])

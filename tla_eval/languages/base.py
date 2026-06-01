@@ -37,7 +37,7 @@ class InvariantTemplate:
     """Generic invariant template loaded from data/invariant_templates/<lang>/<task>/invariants.yaml."""
 
     name: str
-    type: str  # "safety" | "liveness"
+    type: str  # "safety" | "temporal_safety" | "liveness"
     natural_language: str
     formal_description: str
     example: str  # the per-language reference snippet (e.g. tla_example, alloy_example)
@@ -224,9 +224,11 @@ class LanguageBackend(ABC):
         """
         Check each translated invariant against the spec.
 
-        `templates` carries the per-invariant type ("safety" / "liveness")
+        `templates` carries the per-invariant type ("safety" /
+        "temporal_safety" / "liveness")
         which the backend may need to splice in correctly (e.g. TLA+ puts
-        safety into INVARIANT and liveness into PROPERTY in the .cfg).
+        state safety into INVARIANT and temporal properties into PROPERTY in
+        the .cfg).
         `translated` maps invariant name → translated text. Both inputs
         are aligned by name; an entry in `templates` without a matching
         `translated` entry should be reported as a translation failure.

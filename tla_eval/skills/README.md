@@ -45,6 +45,7 @@ Output: per-action pass rates with evidence in `reports/final_report.md`.
 | Task | Repo cloned | Instrumentation ready |
 |---|---|---|
 | etcd | ✓ (via Specula) | ✓ (via Specula + agent extended) |
-| spin | — | Docker-based (existing SysMoBench pipeline) |
-| redisraft | ✓ (via Specula) | TBD |
-| curp, raftkvs, zookeeper, mutex, rwmutex, dqueue, ringbuffer, locksvc | — | TBD (run harness-gen skill) |
+| spin | ✓ | ✓ (Docker-based existing SysMoBench pipeline) |
+| essential_paxos | ✓ (`artifacts/essential_paxos/paxos/`) | ✓ (source-patched Category A harness) |
+| redisraft | ✓ (via Specula) | ✓ |
+| curp, raftkvs, zookeeper, mutex, rwmutex, dqueue, ringbuffer, locksvc | ✓ | ✓ (see `docs/dev/harness_bootstrap_status.md`) |

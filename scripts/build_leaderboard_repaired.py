@@ -50,7 +50,8 @@ P4_RESULTS = PROJECT_ROOT / "batch_logs" / "p4_results"
 OUT_DIR = PROJECT_ROOT / "docs" / "leaderboard"
 
 SYSTEMS = ["curp", "dqueue", "etcd", "locksvc", "mutex", "raftkvs",
-           "redisraft", "ringbuffer", "rwmutex", "spin", "zookeeper"]
+           "redisraft", "ringbuffer", "rwmutex", "spin", "zookeeper",
+           "essential_paxos"]
 
 
 # ── P1/P2 from repair manifest ──
@@ -287,14 +288,14 @@ def write_paper_summary(agg, rows, path: Path):
         sys_spin, sys_mutex, sys_rwmutex, sys_dqueue, sys_ringbuffer,
         sys_locksvc, sys_curp, sys_raftkvs, sys_redisraft, sys_zookeeper, sys_etcd
 
-    Per-model phase columns are means across the model's 11 systems.
+    Per-model phase columns are means across the configured systems.
     Per-system columns hold the cell's overall score (mean of the 4 phases,
     missing counts as 0), matching the old file's semantics.
     """
     # Keep the old non-alphabetical column order (simple -> complex)
     system_order = ["spin", "mutex", "rwmutex", "dqueue", "ringbuffer",
                     "locksvc", "curp", "raftkvs", "redisraft", "zookeeper",
-                    "etcd"]
+                    "etcd", "essential_paxos"]
     by_cell: dict[tuple[str, str], float] = {}
     for r in rows:
         by_cell[(r["model"], r["system"])] = r["overall"]

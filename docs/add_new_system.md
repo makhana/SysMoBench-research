@@ -1,6 +1,8 @@
 # Adding a new system
 
-Four files. Once they exist the rest of the pipeline picks the system up automatically.
+Four files make a task discoverable by the single-cell pipeline. Also add the
+task name to the batch and leaderboard registries when it should participate in
+full benchmark sweeps.
 
 ## 1. `tla_eval/tasks/<name>/task.yaml`
 
@@ -41,11 +43,15 @@ Reference layout: `tla_eval/tasks/etcd/prompts/`.
 
 ```yaml
 - name: "<InvariantName>"
-  type: "safety" | "liveness"
+  type: "safety" | "temporal_safety" | "liveness"
   natural_language: "<plain-English statement>"
   formal_description: "<math / pseudocode>"
   tla_example: "<TLA+ snippet>"
 ```
+
+Use `temporal_safety` for safety formulas that need temporal operators and
+must be checked as TLC `PROPERTY` clauses rather than state `INVARIANT`
+clauses.
 
 ## 4. Trace harness
 

@@ -247,8 +247,8 @@ timeout knob.
 
 **`check_invariants`** runs each translated invariant through the model
 checker and returns one `InvariantCaseResult` per template. The `templates`
-list carries the per-invariant `type` ("safety" vs "liveness"), which
-matters for languages like TLA+ that splice them into INVARIANT vs PROPERTY
+list carries the per-invariant `type` ("safety", "temporal_safety", or
+"liveness"), which matters for languages like TLA+ that splice them into INVARIANT vs PROPERTY
 slots in the config — read `template.type`, don't hardcode `"safety"`.
 
 References:
@@ -298,14 +298,14 @@ Each entry:
 
 ```yaml
 - name: "MutualExclusion"
-  type: "safety"             # or "liveness"
+  type: "safety"             # or "temporal_safety" / "liveness"
   natural_language: "At most one thread holds the lock."
   formal_description: "|{ t : state[t] = HOLDING }| <= 1"
   mylang_example: "..."      # the field your backend declares
 ```
 
 You only need to populate entries for the systems you intend to evaluate.
-TLA+ templates exist for all 11 systems; Alloy and PAT historically
+TLA+ templates exist for all 12 systems; Alloy and PAT historically
 covered only `spin`.
 
 ---

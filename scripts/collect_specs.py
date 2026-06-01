@@ -52,7 +52,8 @@ EXP_ROOT = PROJECT_ROOT / "experiments"
 PAPER_CSV = PROJECT_ROOT / "docs" / "leaderboard" / "paper_summary.csv"
 
 SYSTEMS = ["spin", "mutex", "rwmutex", "dqueue", "ringbuffer", "locksvc",
-           "curp", "raftkvs", "redisraft", "zookeeper", "etcd"]
+           "curp", "raftkvs", "redisraft", "zookeeper", "etcd",
+           "essential_paxos"]
 
 RUNS_PER_CELL = 5
 
@@ -332,7 +333,7 @@ def main():
             "batch_scored": batch_scored,
             "per_system": {s: manifest["systems"][s]["runs_selected"] for s in SYSTEMS},
         }
-        status = f"{total_runs}/{11*RUNS_PER_CELL} ({batch_scored} with batch scores)"
+        status = f"{total_runs}/{len(SYSTEMS)*RUNS_PER_CELL} ({batch_scored} with batch scores)"
         short = f"  short: {', '.join(missing)}" if missing else ""
         print(f"  {model:28} {status}{short}")
 

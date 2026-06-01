@@ -1,83 +1,73 @@
 TASK
 ====
 
-Write a TLA+ specification of single-decree Essential Paxos that faithfully
-models the reference Python implementation provided below. The specification
-will be evaluated for syntax correctness (SANY), runtime correctness (TLC),
-conformance to captured execution traces of the reference implementation,
-and satisfaction of expert-written safety invariants.
+Write a finite-state TLA+ specification of the single-decree Essential Paxos
+implementation below. It will be checked with SANY, TLC, captured execution
+traces, and separately translated expert invariants.
 
-
-SCOPE â€” single-decree Paxos only
+SCOPE -- SINGLE-DECREE PAXOS ONLY
 ================================
-- Model three roles: Proposer, Acceptor, Learner. Multiple of each may exist.
-- Model two phases: (1) Prepare / Promise, (2) Accept / Accepted.
-- Model exactly these message types: Prepare, Promise, Accept, Accepted.
+- Model Proposer, Acceptor, and Learner roles.
+- Model Prepare, Promise, Accept, and Accepted messages.
 - Acceptor state: promised proposal id, accepted proposal id, accepted value.
-- Proposer state: current proposal id, proposed value, set of promises
-  received, highest previously-accepted id learned via promises.
-- Learner state: per-acceptor latest accepted proposal id, and once
-  consensus is reached, the final decided value.
-- Quorums are simple majorities, parameterized by the number of acceptors.
+- Proposer state: next ballot number, current proposal id, proposed value,
+  promises received, and highest previously accepted proposal learned.
+- Learner state: each acceptor's latest accepted proposal and the final decided
+  proposal/value once a quorum agrees.
+- Use simple-majority quorums over Acceptors.
+- Model setting a proposer's input value with an auxiliary SetProposal(p, v)
+  action. It may appear in Next, but it is not one of the five TV actions.
 
-OUT OF SCOPE â€” do not include any of the following:
-- Multi-Paxos, log replication, or sequence numbers across multiple
-  consensus instances.
-- Leader election, heartbeats, or NACKs.
-- Durability, persistence, or crash recovery.
-- Message retransmission (the network model handles this implicitly).
-- Byzantine faults.
-- Liveness properties or fairness assumptions.
-
-Anything not listed in SCOPE must not appear in the specification.
-
+OUT OF SCOPE
+============
+- Multi-Paxos, logs, leader election, heartbeats, NACKs, durability, crash
+  recovery, retransmission logic, Byzantine faults, fairness, and liveness.
 
 NETWORK MODEL
 =============
-- Asynchronous messaging via a single global set `msgs` of in-flight
-  messages.
-- Sending a message is modeled as `msgs' = msgs \union {m}`.
-- Receiving a message reads it from `msgs` without removing it, so the same
-  message may be delivered to multiple recipients and may be re-read.
-- This implicitly models loss, duplication, and reordering: any subset of
-  sent messages may be processed in any order.
-- Do not introduce per-link queues, sequence numbers, or acknowledgements.
+- Use one global set msgs of in-flight messages.
+- Sending adds a message with msgs' = msgs \union {m}.
+- Receiving reads a selected message without removing it. This intentionally
+  permits loss, duplication, reordering, and repeated delivery.
 
+FINITE BALLOTS
+==============
+- Declare finite CONSTANTS Acceptors, Proposers, Learners, Values,
+  BallotNumbers.
+- Define ProposalIDs == BallotNumbers \X Proposers.
+- Define explicit lexicographic comparison operators for proposal ids. TLA+
+  tuples do not provide a built-in ordering.
+- Keep all variable domains finite so TLC can enumerate the initial states.
+
+REQUIRED TV ACTIONS
+===================
+Define these top-level named actions exactly:
+  Prepare(p)
+  HandlePrepare(a, m)
+  HandlePromise(p, m)
+  HandleAccept(a, m)
+  HandleAccepted(l, m)
+
+Match the Python handlers closely, including stale and duplicate message
+behavior. Define vars, Init, TypeOK, Next, and:
+  Spec == Init /\ [][Next]_vars
 
 OUTPUT FORMAT
 =============
-- A single TLA+ module named `EssentialPaxos`.
-- EXTENDS Naturals, FiniteSets, TLC as needed.
-- CONSTANTS: Acceptors, Proposers, Learners, Values (all sets).
-- Define Quorums as the set of majority subsets of Acceptors.
-- Define ProposalIDs as Nat \X Proposers, with the standard lexicographic
-  order, so proposal ids are totally ordered and unique per proposer.
-- VARIABLES grouped by role plus the global `msgs`.
-- A TypeOK invariant covering every variable.
-- An Init predicate setting all variables to a clearly defined starting
-  state.
-- A Next predicate that is a disjunction of these named actions
-  (existentially quantified over their arguments):
-    Prepare(p)                 -- a proposer initiates Phase 1
-    HandlePrepare(a, m)        -- an acceptor processes a Prepare message
-    HandlePromise(p, m)        -- a proposer processes a Promise message
-    HandleAccept(a, m)         -- an acceptor processes an Accept message
-    HandleAccepted(l, m)       -- a learner processes an Accepted message
-- A `vars` tuple listing every variable.
-- Spec == Init /\ [][Next]_vars.
-- Output only the TLA+ module, wrapped in a single ```tla code block. No
-  prose explanation before or after.
+Output exactly two fenced blocks and no prose:
+1. A ```tla block containing module EssentialPaxos.
+2. A ```cfg block containing a finite TLC configuration.
 
+The cfg must assign every declared constant, use at least three acceptors, two
+proposers, two learners, two values, and three ballot numbers, and include:
+  SPECIFICATION Spec
+  CHECK_DEADLOCK FALSE
+
+Do not reference Agreement, Validity, Stability, or PromiseMonotonic in this
+base cfg. Expert invariants are added separately in Phase 4.
 
 REFERENCE IMPLEMENTATION
 ========================
-The TLA+ specification must faithfully model the behavior of the following
-Python implementation. Every state mutation and every message-sending
-decision in the Python code must correspond to a transition in the TLA+
-spec, and the spec must not admit transitions the implementation would not
-perform.
-
-{{SOURCE_CODE}}
-
+{source_code}
 
 Produce the EssentialPaxos specification now.

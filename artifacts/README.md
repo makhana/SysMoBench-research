@@ -42,7 +42,7 @@ with in-place edits is simpler for a benchmark.
 
 ## Disk usage
 
-Each artifact is typically 5-50 MB. All 11 systems should fit in under 1 GB.
+Each artifact is typically 5-50 MB. All 12 systems should fit in under 1 GB.
 
 ## Gitignored
 
