@@ -1,0 +1,71 @@
+# SysMoBench task definition for Essential Paxos.
+# Location in the SysMoBench repo:
+#     tla_eval/tasks/essential_paxos/task.yaml
+#
+# Modeled on tla_eval/tasks/raftkvs/task.yaml (PGo distributed system,
+# closest precedent for an externally-instrumented native harness).
+
+name: "essential_paxos"
+description: "Single-decree Paxos consensus, educational reference from cocagne/paxos"
+system_type: "distributed"
+language: "python"
+
+repository:
+  url: "https://github.com/cocagne/paxos.git"
+  # cocagne/paxos uses the legacy "master" branch name.
+  branch: "master"
+  # Pin a specific commit for reproducibility (artifacts/ is gitignored
+  # so the only record of which version was used lives here).
+  commit: "[paste cocagne/paxos commit hash here]"
+
+source_files:
+  - path: "paxos/essential.py"
+    description: "Networking-agnostic single-decree Paxos: Proposer, Acceptor, Learner"
+
+default_source_file: "paxos/essential.py"
+
+specModule: "EssentialPaxos"
+
+traces_folder: "data/sys_traces/essential_paxos"
+
+metadata:
+  original_project: "cocagne/paxos"
+
+# TV (transition validation) configuration.
+tv:
+  repo_path: "data/repositories/cocagne_paxos"
+
+  # Spec actions in scope. The agent maps these to whatever names the
+  # generated spec actually uses.
+  target_actions:
+    - Prepare
+    - HandlePrepare
+    - HandlePromise
+    - HandleAccept
+    - HandleAccepted
+
+  harness:
+    type: "native"
+    instrumentation_file: "scripts/harness/essential_paxos/parse_traces.py"
+    test_file: "scripts/harness/essential_paxos/parse_traces.py"
+    test_target: "main"
+    run_command: "bash scripts/harness/essential_paxos/run.sh"
+    traces_output_env: "TRACES_DIR"
+    traces_default_dir: "artifacts/essential_paxos/traces"
+    instrumentation_doc: "tla_eval/tasks/essential_paxos/INSTRUMENTATION.md"
+
+    # Label → spec action mapping. Labels are the method-qualified names
+    # of cocagne's role methods; parse_traces is unnecessary because the
+    # Python harness emits canonical NDJSON directly.
+    trace_action_map:
+      "Proposer.prepare": "Prepare"
+      "Acceptor.recv_prepare": "HandlePrepare"
+      "Proposer.recv_promise": "HandlePromise"
+      "Acceptor.recv_accept_request": "HandleAccept"
+      "Learner.recv_accepted": "HandleAccepted"
+
+    coverage_gaps:
+      - "Single-process simulation; no real network. Loss / reorder are injected by the harness, not by an OS-level network stack."
+      - "Four scenarios (happy, duel, loss, late); a real-world deployment would exercise more concurrent-proposer races."
+      - "Learner.recv_accepted is invoked via a Python-3 sentinel patch (TracedLearner) to fix a Py2-vs-Py3 None-comparison bug in upstream essential.py. The protocol semantics are unchanged."
+      - "No coverage of crash / restart paths; essential.py has no persistence layer (those live in durable.py, which is out of scope)."

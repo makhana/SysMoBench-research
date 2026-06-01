@@ -1,0 +1,54 @@
+TASK
+====
+
+Given the TLA+ specification below, produce a TLC configuration file (.cfg)
+suitable for model-checking it against the standard Essential Paxos safety
+invariants.
+
+
+REQUIREMENTS
+============
+
+1. CONSTANTS â€” declare a minimal but non-trivial configuration:
+     Acceptors = {a1, a2, a3}        \* three acceptors, quorum = 2
+     Proposers = {p1, p2}             \* two proposers (enables dueling cases)
+     Learners  = {l1}                 \* one learner is sufficient for safety
+     Values    = {v1, v2}             \* two distinct proposable values
+   Use TLA+ model values, not strings. If the spec declares any of these
+   as `CONSTANTS` with different names, use the spec's names.
+
+2. If the spec parameterizes the proposal-number component (e.g. via a
+   CONSTANT MaxBallot or a Nat range), bound it to a small finite set
+   (e.g. {0, 1, 2, 3}) so TLC can complete. The bound should allow at
+   least two distinct ballot numbers per proposer.
+
+3. SPECIFICATION clause:
+     SPECIFICATION Spec
+   (Assumes the spec defines `Spec == Init /\ [][Next]_vars` per the
+   generation contract.)
+
+4. INVARIANT clauses â€” list every state invariant the spec defines:
+     INVARIANT TypeOK
+     INVARIANT Agreement
+     INVARIANT Validity
+     INVARIANT Stability
+
+5. PROPERTY clause â€” PromiseMonotonic is a step-level temporal formula,
+   not a state predicate. Declare it under PROPERTY, not INVARIANT:
+     PROPERTY PromiseMonotonic
+
+6. CHECK_DEADLOCK FALSE â€” Paxos quiesces once a value is decided; without
+   this, TLC will report the quiescent terminal state as a deadlock.
+
+7. Do not declare SYMMETRY. Symmetry reductions are unsound when invariants
+   reference specific identifiers via existential quantification, which is
+   the case for several of the standard Paxos invariants.
+
+
+TLA+ SPECIFICATION
+==================
+{{TLA_SPEC}}
+
+
+Output only the .cfg file contents, wrapped in a single ```text code block.
+No prose before or after.

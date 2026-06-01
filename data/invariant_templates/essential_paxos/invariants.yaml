@@ -1,0 +1,112 @@
+# SysMoBench invariant template for Essential Paxos.
+# Location in the SysMoBench repo:
+#     data/invariant_templates/essential_paxos/invariants.yaml
+#
+# Schema (from docs/add_new_system.md):
+#   - name:              short identifier, becomes the TLA+ operator name
+#     type:              "safety" or "liveness"
+#     natural_language:  plain-English statement
+#     formal_description: math / pseudocode
+#     tla_example:       TLA+ snippet using angle-bracket placeholders
+#                         that the phase-3 prompt will translate to the
+#                         generated spec's variable names.
+#
+# Placeholder glossaries are inlined as TLA+ comments at the top of each
+# tla_example block, since the schema has no dedicated field for them.
+#
+# Only safety invariants are included; liveness is out of scope per the
+# project scoping document (Paxos liveness requires a stable leader and
+# fairness, neither modeled by essential.py).
+
+- name: "Agreement"
+  type: "safety"
+  natural_language: >
+    At most one value is ever decided. No two learners — and no single
+    learner across time — can disagree on the chosen value. This is the
+    defining safety property of consensus.
+  formal_description: >
+    forall l1, l2 in Learners.
+      (decided(l1) != NoValue and decided(l2) != NoValue)
+        implies decided(l1) = decided(l2)
+  tla_example: |
+    \* <Learners>:    set of learner identifiers
+    \* <decided(l)>:  value decided by learner l, or <NoValue> if none yet;
+    \*                in Cocagne's implementation this is Learner.final_value
+    \* <NoValue>:     spec's sentinel for "no value decided yet"
+    Agreement ==
+      \A l1, l2 \in <Learners> :
+        (<decided(l1)> /= <NoValue> /\ <decided(l2)> /= <NoValue>)
+          => <decided(l1)> = <decided(l2)>
+
+- name: "Validity"
+  type: "safety"
+  natural_language: >
+    Any value that is decided was proposed by some proposer. Consensus
+    cannot fabricate values out of thin air; without this, a protocol
+    could trivially satisfy agreement by always deciding a hard-coded
+    value.
+  formal_description: >
+    forall l in Learners.
+      decided(l) != NoValue implies decided(l) in ProposedValues
+  tla_example: |
+    \* <Learners>, <decided(l)>, <NoValue>: as in Agreement
+    \* <ProposedValues>: union of all values any proposer has proposed;
+    \*                    in Cocagne's implementation this corresponds to
+    \*                    values passed to Proposer.set_proposal
+    Validity ==
+      \A l \in <Learners> :
+        <decided(l)> /= <NoValue>
+          => <decided(l)> \in <ProposedValues>
+
+- name: "Stability"
+  type: "safety"
+  natural_language: >
+    Once an acceptor has accepted value v at proposal id n, it never
+    accepts a different value v' at the same proposal id n. This rules
+    out unsound behavior like overwriting an accepted value without
+    bumping the proposal id, which would break the Learner's quorum
+    reasoning.
+  formal_description: >
+    forall a in Acceptors. forall n in ProposalIDs. forall v1, v2 in Values.
+      (hasAccepted(a, n, v1) and hasAccepted(a, n, v2)) implies v1 = v2
+  tla_example: |
+    \* <Acceptors>:              set of acceptor identifiers
+    \* <ProposalIDs>:            set of all proposal ids (typically Nat \X Proposers)
+    \* <Values>:                 set of proposable values
+    \* <hasAccepted(a, n, v)>:   predicate "acceptor a has accepted (n, v)";
+    \*                            for specs tracking only the latest acceptance,
+    \*                            this resolves to:
+    \*                              <accepted_id(a)> = n /\ <accepted_value(a)> = v
+    \*                            for specs with a history set, range over that set
+    Stability ==
+      \A a \in <Acceptors> :
+        \A n \in <ProposalIDs> :
+          \A v1, v2 \in <Values> :
+            (<hasAccepted(a, n, v1)> /\ <hasAccepted(a, n, v2)>)
+              => v1 = v2
+
+- name: "PromiseMonotonic"
+  type: "safety"
+  natural_language: >
+    An acceptor's promised proposal id is non-decreasing over time. Once
+    an acceptor has promised not to accept proposals below some n, it
+    never retracts that promise by lowering the threshold. This is what
+    gives the proposer's Phase-2 recovery logic (using the highest
+    previously-accepted value from Promise responses) its soundness.
+  formal_description: >
+    always (forall a in Acceptors. promised_id(a)' >= promised_id(a))
+  tla_example: |
+    \* This is a step-level temporal property, not a state predicate.
+    \* In the TLC .cfg it must be declared under PROPERTY, not INVARIANT.
+    \*
+    \* <Acceptors>:       as in Stability
+    \* <promised_id(a)>:  highest proposal id acceptor a has promised to,
+    \*                     or the spec's "lowest" sentinel if a has never
+    \*                     promised; in Cocagne's implementation this is
+    \*                     Acceptor.promised_id
+    \* <vars>:            tuple of all spec variables, for [Action]_vars
+    \* Comparison >=:     uses the spec's ordering on proposal ids
+    \*                     (lexicographic if pairs)
+    PromiseMonotonic ==
+      [][\A a \in <Acceptors> :
+           <promised_id(a)>' >= <promised_id(a)>]_<vars>
