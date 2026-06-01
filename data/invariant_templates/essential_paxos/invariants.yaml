@@ -18,6 +18,7 @@
 # project scoping document (Paxos liveness requires a stable leader and
 # fairness, neither modeled by essential.py).
 
+invariants:
 - name: "Agreement"
   type: "safety"
   natural_language: >

@@ -46,8 +46,8 @@ tv:
 
   harness:
     type: "native"
-    instrumentation_file: "scripts/harness/essential_paxos/parse_traces.py"
-    test_file: "scripts/harness/essential_paxos/parse_traces.py"
+    instrumentation_file: "scripts/harness/essential_paxos/run.py"
+    test_file: "scripts/harness/essential_paxos/run.py"
     test_target: "main"
     run_command: "bash scripts/harness/essential_paxos/run.sh"
     traces_output_env: "TRACES_DIR"

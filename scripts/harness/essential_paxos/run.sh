@@ -33,14 +33,14 @@ echo "[run.sh] TRACES_DIR:  $TRACES_DIR" >&2
 export PYTHONPATH="$REPO_PATH:${PYTHONPATH:-}"
 export TRACES_DIR
 
-python3 "$SCRIPT_DIR/parse_traces.py"
+python3 "$SCRIPT_DIR/run.py"
 
-# Quick sanity report — each scenario should end with a HandleAccepted that
-# writes a final_value (i.e. consensus was reached).
+# Quick sanity report — each scenario should end with a HandleAccepted whose
+# state contains final_value (i.e. consensus was reached).
 echo "[run.sh] trace summary:" >&2
 for f in "$TRACES_DIR"/trace_*.ndjson; do
   total=$(wc -l < "$f")
-  resolved=$(grep -c '"final_value\[' "$f" || true)
+  resolved=$(grep -c '"final_value": [^n]' "$f" || true)
   printf "    %-50s %s events, %s resolution(s)\n" \
     "$(basename "$f")" "$total" "$resolved" >&2
 done

@@ -1,163 +1,119 @@
-# essential_paxos Harness — Instrumentation & Run Notes
+# Instrumentation Guide — essential_paxos
 
-Collects traces from cocagne/paxos `essential.py` (single-decree Paxos:
-1 proposer or 2, 3 acceptors, 1 learner) for TV action-window
-validation.
+This document is for the Phase 3 (validation) agent. It describes where each
+instrumentation point lives and how to adjust it if trace validation reveals
+issues.
 
-## Where the code lives
+## System overview
 
-- **Upstream clone**: `data/repositories/cocagne_paxos/` (read-only;
-  no in-place patches).
-- **System source**: `data/repositories/cocagne_paxos/paxos/essential.py` —
-  `Proposer`, `Acceptor`, `Learner`, `ProposalID`, abstract `Messenger`.
-- **Our harness** (no upstream patches required):
-  - `scripts/harness/essential_paxos/run.py` — the harness. Implements
-    `HarnessMessenger` (cocagne's abstract `Messenger` interface),
-    drives Proposer/Acceptor/Learner through four scenarios, emits
-    canonical NDJSON. Subclasses `essential.Learner` as `TracedLearner`
-    to patch a Python-3 None-vs-tuple comparison bug.
-  - `scripts/harness/essential_paxos/run.sh` — orchestrator. Verifies
-    the clone exists, sets `TRACES_DIR`, invokes `run.py`, prints a
-    summary.
+- **Source**: `paxos/essential.py` in the cocagne/paxos clone
+  (`data/repositories/cocagne_paxos`)
+- **Language**: Python 3
+- **Instrumentation style**: External interface implementation (Category A,
+  standard single-file NDJSON). No source patching required.
+- **Extension point**: `Messenger` abstract class. `HarnessMessenger` in
+  `run.py` implements it and routes messages through an in-memory `Network`.
 
-No `parse_traces.py` is needed: the Python harness emits
-SysMoBench-canonical events directly. Compare with raftkvs, where
-`parse_traces.py` converts PGo-native traces — there the trace format
-isn't ours to choose.
+## Category
 
-## Label → spec action mapping
+**Category A** (simulated distributed). Operations are not ns-level CAS ops;
+no probe effect; standard single-file approach is correct.
 
-Each role method in `essential.py` corresponds to exactly one TLA+
-action. The harness emits one canonical trace event per method
-invocation; the label is the method-qualified name.
+## Files
 
-| Method label                   | Spec action      |
-| ------------------------------ | ---------------- |
-| `Proposer.prepare`             | `Prepare`        |
-| `Acceptor.recv_prepare`        | `HandlePrepare`  |
-| `Proposer.recv_promise`        | `HandlePromise`  |
-| `Acceptor.recv_accept_request` | `HandleAccept`   |
-| `Learner.recv_accepted`        | `HandleAccepted` |
+| File | Role |
+|------|------|
+| `artifacts/essential_paxos_skill_compare/run.py` | Harness driver (trace emitter + scenarios) |
+| `artifacts/essential_paxos_skill_compare/run.sh` | One-command orchestrator |
+| `data/repositories/cocagne_paxos/paxos/essential.py` | **Read-only** source (never patched) |
 
-This mapping is also declared in `task.yaml`'s
-`tv.harness.trace_action_map` and is the contract between the harness
-and transition validation.
+## Instrumentation points (file:function)
 
-`Messenger.on_resolution` does not get its own event — it is invoked
-by the Learner inside `recv_accepted` when a quorum has been collected,
-and the consequent state change is captured by the `HandleAccepted`
-event's `writes` (specifically, `final_proposal_id[l]` and
-`final_value[l]` transition from null to concrete values).
+All emit calls are in `run.py`. The actual protocol code runs inside each
+emit function; the emit is the wrapper.
 
-## Event schema
+| Spec action     | Function in run.py         | Trigger point |
+|-----------------|---------------------------|---------------|
+| `Prepare`       | `emit_prepare`            | After `proposer.prepare()` returns |
+| `HandlePrepare` | `emit_handle_prepare`     | After `acceptor.recv_prepare()` returns |
+| `HandlePromise` | `emit_handle_promise`     | After `proposer.recv_promise()` returns |
+| `HandleAccept`  | `emit_handle_accept`      | After `acceptor.recv_accept_request()` returns |
+| `HandleAccepted`| `emit_handle_accepted`    | After `learner.recv_accepted()` (TracedLearner) returns |
 
-Every line in a trace file is a single JSON object of the form:
+All captures are **post-state** (state is read after the method returns).
 
-```json
-{"tag":"trace","event":{
-  "seq":       <monotonic int>,
-  "name":      <spec action>,
-  "action":    <spec action>,
-  "label":     <method-qualified label>,
-  "pid":       <role uid>,
-  "archetype": <"Proposer" | "Acceptor" | "Learner">,
-  "reads":     { ... pre-state values incl. incoming msg fields ... },
-  "writes":    { ... post-state delta incl. emitted messages ... }
-}}
+## State capture levels
+
+All actions use **Full** capture: the role object is fully accessible after
+the method returns and all relevant fields are captured.
+
+| Action           | Captured fields |
+|------------------|----------------|
+| `Prepare`        | `proposal_id`, `proposed_value`, `last_accepted_id`, `promises_rcvd` |
+| `HandlePrepare`  | `promised_id`, `accepted_id`, `accepted_value` |
+| `HandlePromise`  | `proposal_id`, `proposed_value`, `last_accepted_id`, `promises_rcvd` |
+| `HandleAccept`   | `promised_id`, `accepted_id`, `accepted_value` |
+| `HandleAccepted` | `final_proposal_id`, `final_value` |
+
+## NDJSON schema
+
+```
+config line (first line per file):
+  {"tag": "config", "ts": <epoch_ns>, "config": {
+      "acceptors": ["a1","a2","a3"],
+      "learners":  ["l1"],
+      "quorum_size": 2
+  }}
+
+event line:
+  {"tag": "trace", "ts": <epoch_ns>, "event": {
+      "name":      "<SpecActionName>",
+      "nid":       "<role_uid>",
+      "archetype": "Proposer"|"Acceptor"|"Learner",
+      "state":     {<post-state vars>},
+      "msg":       {<inbound message fields>} | absent for Prepare
+  }}
 ```
 
-The `reads` dict captures the pre-action values of every variable the
-action depends on, plus `msg.*` keys for fields read off the incoming
-message (when applicable). The `writes` dict captures only entries that
-_changed_ during the action; emitted messages appear under the special
-`msgs+` key as a list of compact descriptions.
+- `ts` is `time.time_ns()` (real epoch nanoseconds, never synthetic).
+- `ProposalID(n, uid)` serializes to `[n, uid]`; `NEG_INF` serializes to `null`.
 
-`ProposalID` values serialize as 2-element lists `[number, uid]`. The
-sentinel `NEG_INF = ProposalID(-1, "")` (used for "no promise/acceptance
-yet" so Python-3 comparisons succeed) serializes as `null`.
+## How to add a new field to an event
 
-## Noise filter
+1. Find the relevant `state_<role>()` function in `run.py`.
+2. Add the field: `"new_field": obj.new_field`.
+3. Re-run: `bash artifacts/essential_paxos_skill_compare/run.sh`
 
-None. The protocol is small enough that every method invocation
-corresponds to a meaningful spec action. Compare with raftkvs, where
-two tight-poll-loop labels each fire 30K+ times per run and must be
-dropped.
+## How to move a capture point (post → pre)
 
-## How to run
+Each `emit_*` function in `run.py` calls `role.method()` then reads state.
+To capture pre-state: snapshot before the call and pass that snapshot to
+`tw.emit(state=...)` instead.
+
+## How to add a new event type
+
+Copy the pattern of the closest existing `emit_*` function, add a new
+function, insert a call in the `drain()` dispatch or at the scenario level,
+and add the action name to `REQUIRED_ACTIONS` in `run.sh`.
+
+## How to rebuild and re-run
+
+No build step. Just:
 
 ```bash
-# from project root
-bash scripts/harness/essential_paxos/run.sh
+TRACES_DIR=artifacts/essential_paxos/traces \
+REPO_PATH=data/repositories/cocagne_paxos \
+bash artifacts/essential_paxos_skill_compare/run.sh
 ```
 
-Writes four files into `artifacts/essential_paxos/traces/`:
+## Known limitations / coverage gaps
 
-| File                    | Scenario                                      |
-| ----------------------- | --------------------------------------------- |
-| `trace_01_happy.ndjson` | 1 proposer, 3 acceptors, 1 learner, no faults |
-| `trace_02_duel.ndjson`  | 2 proposers race, p2 issues higher ballot     |
-| `trace_03_loss.ndjson`  | Drops 1 Promise and 1 Accepted                |
-| `trace_04_late.ndjson`  | First Promise reordered to end of queue       |
-
-Each scenario terminates in a `HandleAccepted` event whose `writes`
-populate the learner's `final_value` — i.e., consensus reached. If a
-loss scenario is configured to drop messages such that quorum cannot
-form, the trace will end without a `final_value`-writing event;
-transition validation treats this as a legitimate quiescent terminal
-state.
-
-Typical event counts per scenario:
-
-| Action           | happy | duel | loss | late |
-| ---------------- | ----- | ---- | ---- | ---- |
-| `Prepare`        | 1     | 2    | 1    | 1    |
-| `HandlePrepare`  | 3     | 6    | 3    | 3    |
-| `HandlePromise`  | 3     | 4-6  | 2-3  | 3    |
-| `HandleAccept`   | 3     | 3    | 3    | 3    |
-| `HandleAccepted` | 1     | 1    | 1-2  | 1    |
-| **Total events** | ~11   | ~17  | ~10  | ~11  |
-
-Runtime: well under a second total for all four scenarios.
-
-### Environment overrides
-
-| Var          | Default                                                  | Purpose             |
-| ------------ | -------------------------------------------------------- | ------------------- |
-| `TRACES_DIR` | `artifacts/essential_paxos/traces`                       | Output directory    |
-| `REPO_PATH`  | `data/repositories/cocagne_paxos`                        | cocagne/paxos clone |
-| `PYTHONPATH` | adds `$REPO_PATH` so `from paxos import essential` works | (set by run.sh)     |
-
-## Known gaps
-
-- **External instrumentation.** Unlike raftkvs, where the harness
-  patches `bootstrap/server.go` and `bootstrap/client.go` in place,
-  this harness wraps cocagne's `Messenger` interface externally. The
-  upstream `essential.py` is read-only. This means atomic intermediate
-  states _within_ a single `recv_*` call (e.g., between writing
-  `promised_id` and sending the Promise) are not separately
-  observable — only the action's pre/post snapshot is captured.
-  Acceptable here because every spec action is intended to be atomic.
-
-- **Python-3 sentinel patch.** `essential.py` was written for Python 2,
-  where `None` compares against tuples without raising. The harness
-  initializes every `ProposalID`-typed field to `NEG_INF =
-ProposalID(-1, "")` so Python-3 comparisons succeed, and subclasses
-  `Learner` as `TracedLearner` to fix one place (`recv_accepted`) where
-  upstream depends on the dict-with-None-key shape. Protocol semantics
-  unchanged.
-
-- **Single process, no real network.** Loss / duplication / reordering
-  are injected by `Network` rather than by an OS network stack. This
-  matches the message-bag abstraction every canonical Paxos TLA+ spec
-  uses, but loses any wall-clock-driven nondeterminism that a real
-  distributed deployment would expose.
-
-- **Four scenarios.** Coverage is intentional rather than exhaustive.
-  A richer matrix (e.g., 3 concurrent proposers, partition oracles,
-  acceptor crashes) would push transition validation harder but
-  requires modeling crashes in the spec, which is out of the project's
-  scope (essential.py has no persistence layer; durable.py is excluded).
-
-- **No liveness check.** All four scenarios are designed to terminate
-  in a resolution under their respective fault profiles. Paxos liveness
-  requires fairness assumptions and a stable leader (out of scope).
+- Single-process simulation. No real network stack; loss and reorder are
+  injected by the harness `Network` class.
+- Four scenarios (happy, duel, loss, late_promise). More concurrent-proposer
+  races are possible but not currently exercised.
+- `TracedLearner` overrides `Learner.recv_accepted` to fix a Py2-vs-Py3
+  `None`-comparison bug in upstream `essential.py`. The protocol semantics
+  are identical; only the sentinel value changes (`None` → `NEG_INF`).
+- No crash/restart coverage. `essential.py` has no persistence (that lives
+  in `durable.py`, which is out of scope for this task).
