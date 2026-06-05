@@ -87,7 +87,7 @@ invariants:
               => v1 = v2
 
 - name: "PromiseMonotonic"
-  type: "safety"
+  type: "liveness"
   natural_language: >
     An acceptor's promised proposal id is non-decreasing over time. Once
     an acceptor has promised not to accept proposals below some n, it

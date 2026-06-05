@@ -94,9 +94,10 @@ if [[ -n "$MODEL" ]]; then
 fi
 
 # Budget control
-if [[ -n "$MAX_BUDGET" && "$MAX_BUDGET" != "0" ]]; then
-  CMD+=(--max-budget-usd "$MAX_BUDGET")
-fi
+# Note: --max-budget-usd was removed in Claude Code 2.x; skip it silently.
+# if [[ -n "$MAX_BUDGET" && "$MAX_BUDGET" != "0" ]]; then
+#   CMD+=(--max-budget-usd "$MAX_BUDGET")
+# fi
 
 # ── Run ──
 # Write JSON output to raw file, then post-process into .log and .usage.json

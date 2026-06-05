@@ -9,11 +9,13 @@ invariants.
 REQUIREMENTS
 ============
 
-1. CONSTANTS â€” declare a minimal but non-trivial configuration:
+1. CONSTANTS — declare a minimal but non-trivial configuration:
      Acceptors = {a1, a2, a3}        \* three acceptors, quorum = 2
      Proposers = {p1, p2}             \* two proposers (enables dueling cases)
      Learners  = {l1}                 \* one learner is sufficient for safety
      Values    = {v1, v2}             \* two distinct proposable values
+     NoValue   = NoValue              \* model value sentinel for "nothing decided yet"
+     MaxBallot = 3                    \* bounds ProposalIDs = (0..3) \X Proposers
    Use TLA+ model values, not strings. If the spec declares any of these
    as `CONSTANTS` with different names, use the spec's names.
 
@@ -27,17 +29,17 @@ REQUIREMENTS
    (Assumes the spec defines `Spec == Init /\ [][Next]_vars` per the
    generation contract.)
 
-4. INVARIANT clauses â€” list every state invariant the spec defines:
+4. INVARIANT clauses — list every state invariant the spec defines:
      INVARIANT TypeOK
      INVARIANT Agreement
      INVARIANT Validity
      INVARIANT Stability
 
-5. PROPERTY clause â€” PromiseMonotonic is a step-level temporal formula,
+5. PROPERTY clause — PromiseMonotonic is a step-level temporal formula,
    not a state predicate. Declare it under PROPERTY, not INVARIANT:
      PROPERTY PromiseMonotonic
 
-6. CHECK_DEADLOCK FALSE â€” Paxos quiesces once a value is decided; without
+6. CHECK_DEADLOCK FALSE — Paxos quiesces once a value is decided; without
    this, TLC will report the quiescent terminal state as a deadlock.
 
 7. Do not declare SYMMETRY. Symmetry reductions are unsound when invariants
@@ -47,8 +49,8 @@ REQUIREMENTS
 
 TLA+ SPECIFICATION
 ==================
-{{TLA_SPEC}}
+$tla_spec
 
 
-Output only the .cfg file contents, wrapped in a single ```text code block.
-No prose before or after.
+Output ONLY the raw .cfg file content — no markdown, no code blocks, no prose before or after.
+Start your response immediately with the first line of the .cfg file.

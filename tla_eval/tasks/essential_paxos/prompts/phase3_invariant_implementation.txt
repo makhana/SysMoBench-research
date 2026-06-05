@@ -60,12 +60,12 @@ CORRECTNESS RULES
 
 TLA+ SPECIFICATION
 ==================
-{{TLA_SPEC}}
+$tla_specification
 
 
 INVARIANT TEMPLATE
 ==================
-{{INVARIANT_TEMPLATE}}
+$invariant_templates
 
 
 Output only the EssentialPaxosInvariants module, wrapped in a single ```tla

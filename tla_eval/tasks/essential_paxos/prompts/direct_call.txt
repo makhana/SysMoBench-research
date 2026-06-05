@@ -8,7 +8,7 @@ conformance to captured execution traces of the reference implementation,
 and satisfaction of expert-written safety invariants.
 
 
-SCOPE â€” single-decree Paxos only
+SCOPE — single-decree Paxos only
 ================================
 - Model three roles: Proposer, Acceptor, Learner. Multiple of each may exist.
 - Model two phases: (1) Prepare / Promise, (2) Accept / Accepted.
@@ -20,7 +20,7 @@ SCOPE â€” single-decree Paxos only
   consensus is reached, the final decided value.
 - Quorums are simple majorities, parameterized by the number of acceptors.
 
-OUT OF SCOPE â€” do not include any of the following:
+OUT OF SCOPE — do not include any of the following:
 - Multi-Paxos, log replication, or sequence numbers across multiple
   consensus instances.
 - Leader election, heartbeats, or NACKs.
@@ -48,12 +48,43 @@ OUTPUT FORMAT
 =============
 - A single TLA+ module named `EssentialPaxos`.
 - EXTENDS Naturals, FiniteSets, TLC as needed.
-- CONSTANTS: Acceptors, Proposers, Learners, Values (all sets).
+- CONSTANTS: Acceptors, Proposers, Learners, Values (all sets), NoValue.
+  (NoValue is a sentinel meaning "no value decided/accepted yet". Declare it
+  as a CONSTANT — the .cfg will bind it to a model value. Never define it
+  as `CHOOSE x : x \notin Values` — TLC cannot evaluate unbounded CHOOSE.)
 - Define Quorums as the set of majority subsets of Acceptors.
-- Define ProposalIDs as Nat \X Proposers, with the standard lexicographic
-  order, so proposal ids are totally ordered and unique per proposer.
-- VARIABLES grouped by role plus the global `msgs`.
-- A TypeOK invariant covering every variable.
+- Add a CONSTANT MaxBallot and define ProposalIDs == (0..MaxBallot) \X Proposers.
+  Using Nat \X Proposers makes the state space infinite and TLC will fail.
+  The .cfg will bind MaxBallot to a small integer (e.g. 3).
+- Because TLC cannot apply `>` or `<` to tuples directly, define an explicit
+  comparison operator. CRITICAL: the second element of each ProposalID is a
+  Proposer, which is a TLC model value. TLC model values do NOT support `<`
+  comparison — `a[2] < b[2]` on model values will throw a TLC runtime error.
+  Therefore, compare only on the numeric ballot component:
+    ProposalIDLt(a, b) == a[1] < b[1]
+  To keep this a valid total pre-order, ensure each proposer starts at a
+  different ballot number in Prepare: proposer p uses a per-proposer counter
+  so the same ballot number is never assigned by two different proposers
+  simultaneously. Use this operator everywhere proposal IDs are compared.
+  Never write `pid1 > pid2` on tuple-typed values, and never write `a[2] < b[2]`
+  where a[2] is a model value from Proposers or Acceptors.
+- Quorum checks: always check quorum membership by testing
+    Cardinality(someSet) * 2 > Cardinality(Acceptors)
+  Never use `CHOOSE n \in Nat : ...` for quorum size — Nat is infinite and
+  TLC cannot evaluate such CHOOSE expressions. Compute the check inline.
+- VARIABLES: declare each variable on its own line with a plain name (no
+  record-valued grouping). Do NOT group variables into a single record-typed
+  variable per role — declare each field as a separate VARIABLE. This avoids
+  multi-line nested record type expressions that SANY cannot parse.
+  Example (correct):
+    VARIABLES proposerProposalId, proposerValue, ..., msgs
+  Wrong (causes SANY parse error):
+    VARIABLES proposerState  \* where proposerState is typed as [Proposers -> [...]]
+- A TypeOK invariant covering every variable. In TypeOK, keep each type
+  expression on one line, or if it must span lines, keep the closing `]]` on
+  the same line as the last field. Never break a multi-line record type such
+  that the closing bracket `]]` is on its own line at the same indentation
+  level as the conjunction `/\` — SANY will reject it as a parse error.
 - An Init predicate setting all variables to a clearly defined starting
   state.
 - A Next predicate that is a disjunction of these named actions
@@ -77,7 +108,7 @@ decision in the Python code must correspond to a transition in the TLA+
 spec, and the spec must not admit transitions the implementation would not
 perform.
 
-{{SOURCE_CODE}}
+{source_code}
 
 
 Produce the EssentialPaxos specification now.
