@@ -111,7 +111,7 @@ r = (d.get('tv') or {}).get('repo_path')
 if r and not os.path.isabs(r):
     r = os.path.join('$PROJECT_ROOT', r)
 print(r if r else '')
-" 2>/dev/null)
+" 2>/dev/null || true)
     fi
     if [[ -z "$ACTIONS" ]]; then
       ACTIONS=$(python3 -c "
@@ -120,12 +120,19 @@ with open('$TASK_YAML') as f:
     d = yaml.safe_load(f) or {}
 a = (d.get('tv') or {}).get('target_actions') or []
 print(','.join(a))
-" 2>/dev/null)
+" 2>/dev/null || true)
     fi
   fi
 fi
 
 # ── Validate inputs ──────────────────────────────────────
+
+# The deterministic TLC runner fast-path (TV_TLC_RUNNER=1) never touches the
+# repo, so don't require it in that mode. (task.yaml parsing above may also
+# silently no-op if the system python3 lacks PyYAML, leaving REPO_PATH empty.)
+if [[ "${TV_TLC_RUNNER:-}" == "1" && ( -z "$REPO_PATH" || ! -d "$REPO_PATH" ) ]]; then
+  REPO_PATH="$PROJECT_ROOT"
+fi
 
 [[ -z "$SPEC_PATH" ]] && { echo "ERROR: --spec is required"; exit 1; }
 [[ -z "$REPO_PATH" ]] && { echo "ERROR: --repo is required (or set tv.repo_path in task.yaml)"; exit 1; }
@@ -166,6 +173,27 @@ else
   if [[ -f "$CFG" ]]; then
     ln -sf "$CFG" "$WORKSPACE/spec/$(basename "$CFG")"
   fi
+fi
+
+# ── Deterministic TLC runner fast-path ───────────────────
+# The agent-based scoring path below proved unreliable for some tasks
+# (timeouts during the TLC-scoring step). When TV_TLC_RUNNER=1, skip the
+# repo copy + agent entirely and score with the deterministic
+# scripts/tv_runner_tlc.py over pre-generated windows. Seed windows from
+# TV_WINDOWS_FROM=<dir> (e.g. a prior workspace whose agent already produced
+# real traces). Results land in reports/tv_results.json, which the pipeline
+# reads from the most-recently-modified workspace — i.e. this one.
+if [[ "${TV_TLC_RUNNER:-}" == "1" ]]; then
+  echo "[fast-path] TV_TLC_RUNNER=1 — using deterministic TLC runner, skipping agent."
+  if [[ -n "${TV_WINDOWS_FROM:-}" && -d "$TV_WINDOWS_FROM" ]]; then
+    echo "[fast-path] Seeding windows from: $TV_WINDOWS_FROM"
+    cp "$TV_WINDOWS_FROM"/*.ndjson "$WORKSPACE/windows/" 2>/dev/null || true
+  fi
+  RUNNER_PY="${TV_RUNNER_PY:-$PROJECT_ROOT/scripts/tv_runner_tlc.py}"
+  PYBIN="${TV_PYTHON:-python3}"
+  "$PYBIN" "$RUNNER_PY" --workspace "$WORKSPACE" | tee "$WORKSPACE/.run.log"
+  echo "[fast-path] Done. Results: $WORKSPACE/reports/tv_results.json"
+  exit 0
 fi
 
 # Repo: COPY (agent may modify for instrumentation).
