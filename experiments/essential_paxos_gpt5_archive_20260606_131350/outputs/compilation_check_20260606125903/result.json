@@ -1,0 +1,10 @@
+{
+  "overall_success": true,
+  "generation_successful": true,
+  "compilation_successful": true,
+  "generation_time": 128.04639887809753,
+  "compilation_time": 0.1564629077911377,
+  "syntax_errors": [],
+  "semantic_errors": [],
+  "generation_error": null
+}

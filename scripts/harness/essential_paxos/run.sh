@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT=$(cd "$SCRIPT_DIR/../../.." && pwd)
 
-REPO_PATH="${REPO_PATH:-$PROJECT_ROOT/data/repositories/cocagne_paxos}"
+REPO_PATH="${REPO_PATH:-$PROJECT_ROOT/data/repositories/paxos}"
 TRACES_DIR="${TRACES_DIR:-$PROJECT_ROOT/artifacts/essential_paxos/traces}"
 
 if [[ ! -d "$REPO_PATH/paxos" ]]; then

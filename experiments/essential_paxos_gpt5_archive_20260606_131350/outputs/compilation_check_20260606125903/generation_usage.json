@@ -1,0 +1,62 @@
+{
+  "model": "gpt-5",
+  "litellm_model": "openai/gpt-5",
+  "provider": "openai",
+  "finish_reason": "stop",
+  "latency_seconds": 127.8258900642395,
+  "usage": {
+    "completion_tokens": 12106,
+    "prompt_tokens": 4449,
+    "total_tokens": 16555,
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 9152,
+      "rejected_prediction_tokens": 0,
+      "text_tokens": null,
+      "image_tokens": null,
+      "video_tokens": null
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "text_tokens": null,
+      "image_tokens": null,
+      "video_tokens": null
+    }
+  },
+  "response_id": "chatcmpl-DnizxepKWHeYo66kpnSYbQuRwryC3",
+  "attempts_used": 1,
+  "final_sany_success": true,
+  "correction_attempts": [
+    {
+      "attempt": 1,
+      "api_success": true,
+      "sany_success": true,
+      "validate_success": true,
+      "num_errors": 0,
+      "usage": {
+        "completion_tokens": 12106,
+        "prompt_tokens": 4449,
+        "total_tokens": 16555,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 9152,
+          "rejected_prediction_tokens": 0,
+          "text_tokens": null,
+          "image_tokens": null,
+          "video_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "text_tokens": null,
+          "image_tokens": null,
+          "video_tokens": null
+        }
+      },
+      "finish_reason": "stop"
+    }
+  ]
+}

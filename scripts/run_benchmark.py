@@ -341,8 +341,8 @@ Examples:
 
     parser.add_argument("--tlc-timeout", type=int,
                        help="Timeout for TLC model checking in seconds")
-    parser.add_argument("--inv-translator-type", choices=["direct", "agent"], default="agent",
-                       help="Invariant translator: 'agent' (Claude Code agent, default) or 'direct' (single LLM call)")
+    parser.add_argument("--inv-translator-type", choices=["direct", "agent", "codex"], default="agent",
+                       help="Invariant translator: 'agent' (Claude Code agent, default), 'codex' (Codex CLI agent), or 'direct' (single LLM call)")
 
     # Transition validation parameters (--metric transition_validation).
     parser.add_argument("--tv-agent", help="Coding-agent CLI for transition validation (e.g. claude-code, codex)")

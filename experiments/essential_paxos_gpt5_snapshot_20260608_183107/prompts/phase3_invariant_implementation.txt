@@ -26,35 +26,23 @@ $invariant_templates
    - `<promised_id(a)>` -> the acceptor's current promised proposal id
    - `<vars>` -> the exact `vars` tuple defined by the spec
 
-3. TLC-safe TLA+ expression rules:
-   - Do not write filtered expression comprehensions such as `{ proposedVal[p] : p \in Proposers /\ proposedVal[p] # NoValue }`; that is not valid TLA+ syntax.
-   - If you need to say "some proposer currently has this value", use an existential:
-     `\E p \in Proposers : proposedVal[p] = finalValue[l]`.
-   - If the spec declares `Values` as the finite set of all proposable input values, prefer the robust Validity shape:
-     `Validity == \A l \in Learners : finalValue[l] # NoValue => finalValue[l] \in Values`.
-   - For `PromiseMonotonic`, emit exactly one outer always operator around the bracketed action formula:
-     `PromiseMonotonic == [][\A a \in Acceptors : ProposalIDGeq(promisedId'[a], promisedId[a])]_vars`.
-     Never emit `[][][...]_vars`.
-   - Use `/=` or `#` consistently for inequality; both are accepted, but do not invent `!=`.
-   - Do not use undeclared helpers, undefined set functions, direct tuple ordering, or model-value ordering.
-
-4. Preserve the semantic intent of each invariant:
+3. Preserve the semantic intent of each invariant:
    - `Agreement`: no two decided learners can disagree on value.
    - `Validity`: any decided value must be a value that could have been proposed.
    - `Stability`: an acceptor cannot accept two different values for the same proposal id.
    - `PromiseMonotonic`: acceptor promises never decrease across steps.
 
-5. Proposal-id ordering:
+4. Proposal-id ordering:
    - Use ordering helpers defined by the spec, such as `ProposalIDLt`, `ProposalIDLeq`, or `ProposalIDGeq`.
    - Do not compare proposal-id tuples directly with `<`, `>`, `<=`, or `>=`.
    - Do not compare proposer model values directly.
    - For `PromiseMonotonic`, express non-decreasing promises with the spec's helper, for example `ProposalIDLeq(promised[a], promised'[a])`.
 
-6. Property type constraints:
+5. Property type constraints:
    - For template type `safety`, output a state predicate over one state. Use only unprimed variables. Do not use temporal operators or action names.
    - For template type `liveness` or `temporal_safety`, output a temporal formula suitable for the cfg `PROPERTY` section. `PromiseMonotonic` should be a stuttering-insensitive temporal/action property using the spec's `vars` tuple.
 
-7. Constraint compliance:
+6. Constraint compliance:
    - Use only variables, constants, and operators that exist in the provided specification, or define local helpers inside `LET ... IN`.
    - Preserve the exact invariant names from the templates.
    - Return one definition for every provided template unless the core property is impossible to express from the generated state.

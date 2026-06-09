@@ -7,7 +7,7 @@ issues.
 ## System overview
 
 - **Source**: `paxos/essential.py` in the cocagne/paxos clone
-  (`data/repositories/cocagne_paxos`)
+  (`data/repositories/paxos`)
 - **Language**: Python 3
 - **Instrumentation style**: External interface implementation (Category A,
   standard single-file NDJSON). No source patching required.
@@ -23,9 +23,9 @@ no probe effect; standard single-file approach is correct.
 
 | File | Role |
 |------|------|
-| `artifacts/essential_paxos_skill_compare/run.py` | Harness driver (trace emitter + scenarios) |
-| `artifacts/essential_paxos_skill_compare/run.sh` | One-command orchestrator |
-| `data/repositories/cocagne_paxos/paxos/essential.py` | **Read-only** source (never patched) |
+| `scripts/harness/essential_paxos/run.py` | Harness driver (trace emitter + scenarios) |
+| `scripts/harness/essential_paxos/run.sh` | One-command orchestrator |
+| `data/repositories/paxos/paxos/essential.py` | **Read-only** source (never patched) |
 
 ## Instrumentation points (file:function)
 
@@ -82,7 +82,7 @@ event line:
 
 1. Find the relevant `state_<role>()` function in `run.py`.
 2. Add the field: `"new_field": obj.new_field`.
-3. Re-run: `bash artifacts/essential_paxos_skill_compare/run.sh`
+3. Re-run: `bash scripts/harness/essential_paxos/run.sh`
 
 ## How to move a capture point (post → pre)
 
@@ -102,8 +102,8 @@ No build step. Just:
 
 ```bash
 TRACES_DIR=artifacts/essential_paxos/traces \
-REPO_PATH=data/repositories/cocagne_paxos \
-bash artifacts/essential_paxos_skill_compare/run.sh
+REPO_PATH=data/repositories/paxos \
+bash scripts/harness/essential_paxos/run.sh
 ```
 
 ## Known limitations / coverage gaps

@@ -1,0 +1,496 @@
+{
+  "overall_success": true,
+  "generation_successful": true,
+  "compilation_successful": true,
+  "generation_time": 0.0,
+  "compilation_time": 4.100232362747192,
+  "total_actions": 26,
+  "successful_actions": 25,
+  "action_success_rate": 0.9615384615384616,
+  "total_variables_added": 170,
+  "total_functions_added": 20,
+  "total_recovery_attempts": 20,
+  "syntax_errors": [
+    "Messages: ****** SANY2 Version 2.2 created 08 July 2020\n\nParsing file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla\n***Parse Error***\nWas expecting \"==== or more Module body\"\nEncountered \"msgs\" at line 17, column 3 and token \"Proposers\" \n\nResidual stack trace follows:\nModule definition starting at line 1, column 1.\n\n\nFatal errors while parsing TLA+ spec in file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla\n\nIn module EssentialPaxos_Messages\n\nCould not parse module EssentialPaxos_Messages from file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla\n*** Errors: 1\n\nIn module EssentialPaxos_Messages\n\nCould not parse module EssentialPaxos_Messages from file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla"
+  ],
+  "semantic_errors": [],
+  "action_results": [
+    {
+      "action_name": "NoProposal",
+      "success": true,
+      "compilation_time": 0.15113234519958496,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [],
+      "recovery_attempts": 0
+    },
+    {
+      "action_name": "ProposalIDs",
+      "success": true,
+      "compilation_time": 0.1529097557067871,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Proposers",
+        "MaxBallot"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "ProposalIDOrNone",
+      "success": true,
+      "compilation_time": 0.15199494361877441,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "ProposalIDs",
+        "NoProposal"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "ProposalNum",
+      "success": true,
+      "compilation_time": 0.1497359275817871,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [],
+      "recovery_attempts": 0
+    },
+    {
+      "action_name": "ProposalOwnerRank",
+      "success": true,
+      "compilation_time": 0.1488029956817627,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [],
+      "recovery_attempts": 0
+    },
+    {
+      "action_name": "ProposalIDLt",
+      "success": true,
+      "compilation_time": 0.15220403671264648,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [
+        "ProposalOwnerRank",
+        "ProposalNum"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "ProposalIDLeq",
+      "success": true,
+      "compilation_time": 0.1501140594482422,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [
+        "ProposalIDLt"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "ProposalIDGeq",
+      "success": true,
+      "compilation_time": 0.15040206909179688,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [
+        "ProposalIDLeq"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "QuorumSize",
+      "success": true,
+      "compilation_time": 0.14025425910949707,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Acceptors"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "Majority",
+      "success": true,
+      "compilation_time": 0.1522660255432129,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Acceptors"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "PrepareMsg",
+      "success": true,
+      "compilation_time": 0.15600991249084473,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [],
+      "recovery_attempts": 0
+    },
+    {
+      "action_name": "PromiseMsg",
+      "success": true,
+      "compilation_time": 0.14510798454284668,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [],
+      "recovery_attempts": 0
+    },
+    {
+      "action_name": "AcceptMsg",
+      "success": true,
+      "compilation_time": 0.1539912223815918,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [],
+      "recovery_attempts": 0
+    },
+    {
+      "action_name": "AcceptedMsg",
+      "success": true,
+      "compilation_time": 0.15945100784301758,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [],
+      "functions_added": [],
+      "recovery_attempts": 0
+    },
+    {
+      "action_name": "Messages",
+      "success": false,
+      "compilation_time": 0.117279052734375,
+      "syntax_errors": [
+        "****** SANY2 Version 2.2 created 08 July 2020\n\nParsing file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla\n***Parse Error***\nWas expecting \"==== or more Module body\"\nEncountered \"msgs\" at line 17, column 3 and token \"Proposers\" \n\nResidual stack trace follows:\nModule definition starting at line 1, column 1.\n\n\nFatal errors while parsing TLA+ spec in file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla\n\nIn module EssentialPaxos_Messages\n\nCould not parse module EssentialPaxos_Messages from file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla\n*** Errors: 1\n\nIn module EssentialPaxos_Messages\n\nCould not parse module EssentialPaxos_Messages from file /private/var/folders/kz/zp94fk0124n7cznfzcg__3180000gn/T/tla_action_decomp_y_991o9f/EssentialPaxos_Messages.tla"
+      ],
+      "semantic_errors": [],
+      "variables_added": [
+        "Acceptors",
+        "Learners",
+        "ProposalIDs",
+        "ProposalIDOrNone",
+        "NoValue",
+        "Values",
+        "Proposers"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 2
+    },
+    {
+      "action_name": "vars",
+      "success": true,
+      "compilation_time": 0.15351200103759766,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "promisesRcvd",
+        "msgs",
+        "promisedId",
+        "nextPropNum",
+        "acceptedId",
+        "latestFromAcc",
+        "acceptedVal",
+        "proposalId",
+        "proposedVal",
+        "valueForPid",
+        "finalPid",
+        "finalValue",
+        "lastAcceptedId"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "TypeOK",
+      "success": true,
+      "compilation_time": 0.16126108169555664,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "promisedId",
+        "nextPropNum",
+        "latestFromAcc",
+        "ProposalIDOrNone",
+        "proposalId",
+        "Values",
+        "ProposalIDs",
+        "NoValue",
+        "MaxBallot",
+        "proposedVal",
+        "promisesRcvd",
+        "Acceptors",
+        "Learners",
+        "finalPid",
+        "Messages",
+        "lastAcceptedId",
+        "msgs",
+        "acceptedId",
+        "acceptedVal",
+        "valueForPid",
+        "Proposers",
+        "finalValue"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "Init",
+      "success": true,
+      "compilation_time": 0.15422987937927246,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "promisedId",
+        "nextPropNum",
+        "latestFromAcc",
+        "proposalId",
+        "NoProposal",
+        "ProposalIDs",
+        "NoValue",
+        "proposedVal",
+        "promisesRcvd",
+        "Acceptors",
+        "Learners",
+        "finalPid",
+        "lastAcceptedId",
+        "msgs",
+        "acceptedId",
+        "acceptedVal",
+        "valueForPid",
+        "Proposers",
+        "finalValue"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "Prepare",
+      "success": true,
+      "compilation_time": 0.15495014190673828,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "promisesRcvd",
+        "msgs",
+        "Acceptors",
+        "promisedId",
+        "nextPropNum",
+        "acceptedId",
+        "latestFromAcc",
+        "acceptedVal",
+        "MaxBallot",
+        "proposalId",
+        "proposedVal",
+        "valueForPid",
+        "finalPid",
+        "finalValue",
+        "Proposers",
+        "lastAcceptedId"
+      ],
+      "functions_added": [
+        "PrepareMsg"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "HandlePrepare",
+      "success": true,
+      "compilation_time": 0.15628910064697266,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Acceptors",
+        "msgs",
+        "promisesRcvd",
+        "promisedId",
+        "nextPropNum",
+        "acceptedId",
+        "latestFromAcc",
+        "acceptedVal",
+        "proposalId",
+        "proposedVal",
+        "valueForPid",
+        "finalPid",
+        "finalValue",
+        "lastAcceptedId"
+      ],
+      "functions_added": [
+        "ProposalIDGeq",
+        "PromiseMsg",
+        "ProposalIDLt"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "HandlePromise",
+      "success": true,
+      "compilation_time": 0.15785884857177734,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "promisedId",
+        "nextPropNum",
+        "latestFromAcc",
+        "proposalId",
+        "NoValue",
+        "proposedVal",
+        "promisesRcvd",
+        "Acceptors",
+        "finalPid",
+        "QuorumSize",
+        "lastAcceptedId",
+        "msgs",
+        "acceptedId",
+        "acceptedVal",
+        "valueForPid",
+        "Proposers",
+        "finalValue"
+      ],
+      "functions_added": [
+        "ProposalIDLt",
+        "AcceptMsg"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "HandleAccept",
+      "success": true,
+      "compilation_time": 0.1532762050628662,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Acceptors",
+        "msgs",
+        "Learners",
+        "promisedId",
+        "nextPropNum",
+        "promisesRcvd",
+        "acceptedId",
+        "latestFromAcc",
+        "acceptedVal",
+        "proposalId",
+        "proposedVal",
+        "valueForPid",
+        "finalPid",
+        "finalValue",
+        "lastAcceptedId"
+      ],
+      "functions_added": [
+        "ProposalIDGeq",
+        "AcceptedMsg"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "HandleAccepted",
+      "success": true,
+      "compilation_time": 0.15848684310913086,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Acceptors",
+        "msgs",
+        "Learners",
+        "promisesRcvd",
+        "nextPropNum",
+        "lastAcceptedId",
+        "promisedId",
+        "acceptedId",
+        "latestFromAcc",
+        "NoValue",
+        "finalPid",
+        "proposalId",
+        "valueForPid",
+        "proposedVal",
+        "acceptedVal",
+        "finalValue"
+      ],
+      "functions_added": [
+        "Majority",
+        "ProposalIDLt"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "SetProposal",
+      "success": true,
+      "compilation_time": 0.15433287620544434,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "promisesRcvd",
+        "msgs",
+        "promisedId",
+        "nextPropNum",
+        "acceptedId",
+        "latestFromAcc",
+        "NoValue",
+        "acceptedVal",
+        "proposalId",
+        "proposedVal",
+        "valueForPid",
+        "finalPid",
+        "finalValue",
+        "Values",
+        "Proposers",
+        "lastAcceptedId"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "Next",
+      "success": true,
+      "compilation_time": 0.15131592750549316,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Acceptors",
+        "msgs",
+        "Learners",
+        "HandleAccept",
+        "Values",
+        "Proposers"
+      ],
+      "functions_added": [
+        "HandleAccept",
+        "HandlePromise",
+        "HandlePrepare",
+        "Prepare",
+        "HandleAccepted",
+        "SetProposal"
+      ],
+      "recovery_attempts": 1
+    },
+    {
+      "action_name": "Spec",
+      "success": true,
+      "compilation_time": 0.15101003646850586,
+      "syntax_errors": [],
+      "semantic_errors": [],
+      "variables_added": [
+        "Next",
+        "Init",
+        "vars"
+      ],
+      "functions_added": [],
+      "recovery_attempts": 1
+    }
+  ]
+}

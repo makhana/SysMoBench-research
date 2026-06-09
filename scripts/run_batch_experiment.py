@@ -52,7 +52,8 @@ logger = logging.getLogger(__name__)
 # All available systems
 ALL_SYSTEMS = [
     "spin", "etcd", "mutex", "rwmutex", "curp", "dqueue",
-    "locksvc", "raftkvs", "redisraft", "ringbuffer", "zookeeper"
+    "locksvc", "raftkvs", "redisraft", "ringbuffer", "zookeeper",
+    "essential_paxos"
 ]
 
 # Supported generation methods. Only `direct_call` (single-shot API call via
@@ -243,6 +244,7 @@ class BatchExperimentRunner:
                  tv_budget: float = 5.0,
                  tv_timeout: int = 1800,
                  inv_model: str = "sonnet",
+                 inv_agent: Optional[str] = None,
                  tv_agent: Optional[str] = None,
                  tv_model: Optional[str] = None):
         """
@@ -258,6 +260,8 @@ class BatchExperimentRunner:
             enable_tv: Run transition validation (default: True). Set to False for cheap CI/smoke runs.
             tv_budget: Max API budget per TV evaluation in USD (default: 5)
             tv_timeout: Timeout per TV evaluation in seconds (default: 1800)
+            inv_model: Model label to use for invariant verification output grouping.
+            inv_agent: Agent adapter for invariant translation ("codex" routes through Codex CLI).
         """
         self.systems = systems
         self.max_runs = max_runs
@@ -270,6 +274,7 @@ class BatchExperimentRunner:
         self.tv_budget = tv_budget
         self.tv_timeout = tv_timeout
         self.inv_model = inv_model
+        self.inv_agent = inv_agent
         self.tv_agent = tv_agent
         self.tv_model = tv_model
 
@@ -705,9 +710,10 @@ class BatchExperimentRunner:
         """
         logger.info(f"[{system}][Run {run_id}] Phase 3: Invariant verification (agent)...")
 
-        # Use self.inv_model (default: "sonnet") for Phase 3b's agent translator.
-        # This runs Claude Code CLI which uses Claude Code's own credentials,
-        # NOT the user's paid API. See memory/feedback_api_usage_policy.md.
+        inv_translator_type = "codex" if (self.inv_agent or "").strip().lower() == "codex" else "agent"
+
+        # Use self.inv_model for Phase 3b's output/model label. Agent choice is
+        # separate: --inv-agent codex routes translation through the Codex CLI.
         cmd = [
             "python3", "scripts/run_benchmark.py",
             "--task", system,
@@ -716,7 +722,7 @@ class BatchExperimentRunner:
             "--metric", "invariant_verification",
             "--spec-file", spec_path,
             "--config-file", config_path,
-            "--inv-translator-type", "agent",
+            "--inv-translator-type", inv_translator_type,
         ]
 
         try:
@@ -1473,8 +1479,10 @@ Examples:
     parser.add_argument("--tv-model", default=None,
                        help="Model override passed to the TV agent adapter")
     parser.add_argument("--inv-model", default="sonnet",
-                       help="Model for Phase 3b invariant-translator agent CLI (default: sonnet). "
-                            "Uses Claude Code's own credentials, NOT user's paid API.")
+                       help="Model label for Phase 3b invariant verification (default: sonnet).")
+    parser.add_argument("--inv-agent", default=None,
+                       choices=["claude-code", "codex"],
+                       help="Agent adapter for Phase 3b invariant translation. Use 'codex' for Codex CLI.")
     parser.add_argument("--list-systems", action="store_true",
                        help="List all available systems")
     parser.add_argument("--list-agents", action="store_true",
@@ -1523,6 +1531,7 @@ Examples:
         tv_agent=args.tv_agent,
         tv_model=args.tv_model,
         inv_model=args.inv_model,
+        inv_agent=args.inv_agent,
     )
 
     runner.run()

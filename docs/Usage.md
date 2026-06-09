@@ -17,7 +17,7 @@ Required: `--task`, `--method`, `--model`, `--metric`. Use `--spec-file <path>` 
 | Syntax | `compilation_check`, `action_decomposition` | — |
 | Runtime | `runtime_check`, `coverage`, `runtime_coverage` | `--tlc-timeout <s>` |
 | Transition validation | `transition_validation` | `--tv-agent`, `--tv-model`, `--tv-budget`, `--tv-timeout` |
-| Invariant verification | `invariant_verification` | `--tlc-timeout <s>`, `--inv-translator-type {direct,agent}` |
+| Invariant verification | `invariant_verification` | `--tlc-timeout <s>`, `--inv-translator-type {direct,agent,codex}` |
 
 ## Batch evaluation
 
@@ -37,7 +37,8 @@ Outputs land under `experiments/batch_<timestamp>/<system>/run_*.json`.
 | `--threads <N>` | Parallelism; default 5 |
 | `--skip-tv` | Skip transition validation (cost opt-out) |
 | `--tv-agent`, `--tv-model`, `--tv-budget`, `--tv-timeout` | Transition-validation knobs |
-| `--inv-model <id>` | Phase-4 translator model |
+| `--inv-model <id>` | Phase-4 model label |
+| `--inv-agent <agent>` | Phase-4 invariant translator agent (`codex` or `claude-code`) |
 
 Transition validation costs roughly **\$1–4 per (model, system) cell** through the coding-agent CLI; a five-model sweep across all 11 systems is in the low hundreds of USD.
 
@@ -64,10 +65,10 @@ Each system has expert-written templates at `data/invariant_templates/<task>/inv
 
 ```bash
 sysmobench --task <name> --method direct_call --model <id> \
-  --metric invariant_verification --inv-translator-type {direct|agent} --tlc-timeout 600
+  --metric invariant_verification --inv-translator-type {direct|agent|codex} --tlc-timeout 600
 ```
 
-`direct` uses a single LLM call (cheap, fast, default); `agent` uses a Claude Code agent.
+`direct` uses a single LLM call (cheap, fast); `agent` uses a Claude Code agent; `codex` uses a Codex CLI agent.
 
 ## Spec repair
 

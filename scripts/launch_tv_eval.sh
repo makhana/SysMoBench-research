@@ -272,6 +272,18 @@ Write to $WORKSPACE/reports/final_report.md with:
 - Explanation for each score
 - Contract-compliance assessment
 - Flagged issues / Future work (actions outside scope, abstraction limitations, etc.)
+
+Also write machine-readable results to $WORKSPACE/reports/tv_results.json.
+This file is required by SysMoBench. Use exactly this JSON shape:
+{
+  "<ActionName>": {
+    "passed": <integer number of passing windows>,
+    "total": <integer total windows>,
+    "pass_rate": <number from 0.0 to 1.0>
+  }
+}
+Use the same action names and counts as final_report.md. Do not write only
+tv_summary.json; SysMoBench does not parse that filename.
 PROMPT_EOF
 
 echo "================================================"

@@ -1,5 +1,5 @@
 """
-artifacts/essential_paxos_skill_compare/run.py
+scripts/harness/essential_paxos/run.py
 
 Trace harness driver for cocagne/paxos `essential.py` — produced by the
 harness-gen skill methodology.
@@ -33,8 +33,8 @@ Config line (first line of each trace file):
 
 Usage:
     TRACES_DIR=artifacts/essential_paxos/traces \\
-    PYTHONPATH=data/repositories/cocagne_paxos \\
-    python3 artifacts/essential_paxos_skill_compare/run.py
+    PYTHONPATH=data/repositories/paxos \\
+    python3 scripts/harness/essential_paxos/run.py
 """
 
 import json

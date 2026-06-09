@@ -1,0 +1,10 @@
+{
+  "task_name": "essential_paxos",
+  "method_name": "direct_call",
+  "model_name": "gpt5",
+  "metric": "compilation_check",
+  "language": "TLA+",
+  "spec_module": "EssentialPaxos",
+  "validation_timeout": 30,
+  "evaluation_timestamp": 1780743543.754244
+}

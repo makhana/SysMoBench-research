@@ -75,8 +75,22 @@ RAW_JSON="${LOG_FILE%.log}.raw.json"
 USAGE_JSON="${LOG_FILE%.log}.usage.json"
 START_MS="$(date +%s%3N)"
 
+CODEX_BIN="$(command -v codex || true)"
+if [[ -z "$CODEX_BIN" && -d "$HOME/.vscode/extensions" ]]; then
+  CODEX_BIN="$(
+    find "$HOME/.vscode/extensions" -path '*/bin/*/codex' -type f 2>/dev/null \
+      | sort \
+      | tail -n 1
+  )"
+fi
+
+if [[ -z "$CODEX_BIN" ]]; then
+  echo "codex adapter: codex CLI not found on PATH or under ~/.vscode/extensions" >&2
+  exit 127
+fi
+
 CMD=(
-  codex exec
+  "$CODEX_BIN" exec
   --dangerously-bypass-approvals-and-sandbox
   --skip-git-repo-check
   -c 'model_reasoning_effort="high"'

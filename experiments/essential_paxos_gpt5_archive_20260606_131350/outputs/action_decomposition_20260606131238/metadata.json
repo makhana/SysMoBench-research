@@ -1,0 +1,10 @@
+{
+  "task_name": "essential_paxos",
+  "method_name": "direct_call",
+  "model_name": "gpt5",
+  "metric": "action_decomposition",
+  "evaluation_timestamp": 1780744358.485451,
+  "validation_timeout": 30,
+  "keep_temp_files": false,
+  "specification_file": "output/action_decomposition/tla/essential_paxos/direct_call_gpt5/20260606131238/EssentialPaxos.tla"
+}

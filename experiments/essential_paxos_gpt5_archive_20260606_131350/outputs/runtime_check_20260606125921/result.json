@@ -1,0 +1,18 @@
+{
+  "overall_success": true,
+  "invariant_generation_successful": true,
+  "config_generation_successful": true,
+  "model_checking_successful": true,
+  "invariant_generation_time": 0.0,
+  "config_generation_time": 0.0,
+  "model_checking_time": 600.0098869800568,
+  "states_explored": 0,
+  "invariant_violations": [],
+  "deadlock_found": false,
+  "generated_invariants": [],
+  "errors": {
+    "invariant_generation_error": null,
+    "config_generation_error": null,
+    "model_checking_error": null
+  }
+}

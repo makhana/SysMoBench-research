@@ -1,0 +1,11 @@
+{
+  "task_name": "essential_paxos",
+  "method_name": "direct_call",
+  "model_name": "gpt5",
+  "metric": "runtime_check",
+  "language": "TLA+",
+  "specification_file": "output/runtime_check/tla/essential_paxos/direct_call_gpt5/20260606125921/EssentialPaxos.tla",
+  "config_file_path": "output/runtime_check/tla/essential_paxos/direct_call_gpt5/20260606125921/EssentialPaxos.cfg",
+  "tlc_timeout": 600,
+  "evaluation_timestamp": 1780744161.1942651
+}

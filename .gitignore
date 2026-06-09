@@ -18,6 +18,7 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 pip-selfcheck.json
 *.egg-info/
 
@@ -89,7 +90,7 @@ tlaplus/
 liveness_failures_collection
 data/human_eval
 agents/agents*
-experiments
+# experiments
 # Cloned system artifacts
 artifacts/*/
 !artifacts/README.md

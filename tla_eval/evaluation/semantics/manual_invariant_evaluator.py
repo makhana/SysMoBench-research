@@ -29,6 +29,17 @@ from .runtime_check import TLCRunner, ConfigGenerator
 logger = logging.getLogger(__name__)
 
 
+def _normalize_tla_json_escapes(definition: str) -> str:
+    """Normalize over-escaped TLA+ operators from JSON/agent output.
+
+    Agents sometimes emit JSON strings that decode to literal ``\\A``/``\\in``
+    text. TLA+ source needs a single backslash operator, so collapse doubled
+    backslashes in invariant definitions before appending them to the module.
+    """
+    normalized = definition.replace("\\\\", "\\")
+    return normalized.replace("[][][", "[][")
+
+
 @dataclass
 class InvariantTemplate:
     """Represents a single invariant template from the YAML file"""
@@ -239,6 +250,7 @@ class InvariantTranslator:
                         logger.info(f"Processing invariant {i+1}: {len(invariant_definition)} chars")
                         
                         if isinstance(invariant_definition, str) and invariant_definition.strip():
+                            invariant_definition = _normalize_tla_json_escapes(invariant_definition.strip())
                             # Extract invariant name from the definition (everything before '==')
                             invariant_name = invariant_definition.split('==')[0].strip()
                             
@@ -271,6 +283,7 @@ class InvariantTranslator:
             # Look for pattern: InvariantName == <expression>
             if ' == ' in line:
                 logger.info(f"Found potential invariant line {i+1}: {line}")
+                line = _normalize_tla_json_escapes(line)
                 parts = line.split(' == ', 1)
                 if len(parts) == 2:
                     invariant_name = parts[0].strip()
@@ -449,6 +462,19 @@ For each invariant template in `templates.yaml`:
 - Use `/\\` for AND, `\\/` for OR
 - Use `=>` for implication
 - Use `~` for negation
+- Use only valid TLA+ set comprehensions. Do NOT write filtered expression comprehensions
+  such as `{{ proposedVal[p] : p \\in Proposers /\\ proposedVal[p] # NoValue }}`.
+  To express "some proposer has value v", use `\\E p \\in Proposers : proposedVal[p] = v`.
+- For Essential Paxos Validity, if the spec declares `Values` as the finite set of all
+  proposable input values, prefer:
+  `Validity == \\A l \\in Learners : finalValue[l] # NoValue => finalValue[l] \\in Values`.
+- For Essential Paxos PromiseMonotonic, write exactly one outer always operator
+  around the bracketed action formula:
+  `PromiseMonotonic == [][\\A a \\in Acceptors : ProposalIDGeq(promisedId'[a], promisedId[a])]_vars`.
+  Never emit `[][][...]_vars`.
+- Do not use `!=`; use `#` or `/=` for inequality.
+- Do not compare proposal-id tuples directly with `<`, `>`, `<=`, or `>=`; use ordering
+  helpers defined by the spec, such as `ProposalIDLeq` or `ProposalIDGeq`.
 
 ## Output
 
@@ -487,11 +513,22 @@ Write a JSON file to `./output/invariants.json` with this exact format:
     async def _execute_agent_cli(self, workspace_path: Path, model_name: str, agent_cli: str) -> dict:
         """Execute Claude Code or Codex in the workspace."""
         import asyncio
+        import shutil
 
         if agent_cli == "codex":
             model = model_name if model_name and model_name not in {"default", "codex"} else ""
+            codex_bin = shutil.which("codex")
+            if not codex_bin:
+                vscode_extensions = Path.home() / ".vscode" / "extensions"
+                candidates = sorted(vscode_extensions.glob("*/bin/*/codex")) if vscode_extensions.exists() else []
+                codex_bin = str(candidates[-1]) if candidates else None
+            if not codex_bin:
+                return {
+                    "success": False,
+                    "error": "Codex CLI not found on PATH or under ~/.vscode/extensions",
+                }
             cmd = [
-                "codex",
+                codex_bin,
                 "exec",
                 "--dangerously-bypass-approvals-and-sandbox",
                 "--skip-git-repo-check",
@@ -561,6 +598,7 @@ Write a JSON file to `./output/invariants.json` with this exact format:
 
                 if not name or not definition:
                     continue
+                definition = _normalize_tla_json_escapes(definition.strip())
 
                 # Match to template names (case-insensitive)
                 for template in templates:
@@ -583,6 +621,7 @@ Write a JSON file to `./output/invariants.json` with this exact format:
         for line in output_content.split('\n'):
             line = line.strip()
             if ' == ' in line:
+                line = _normalize_tla_json_escapes(line)
                 parts = line.split(' == ', 1)
                 if len(parts) == 2:
                     invariant_name = parts[0].strip()
@@ -763,8 +802,8 @@ class ManualInvariantEvaluator(BaseEvaluator):
                  agent_timeout: int = 600):
         """
         translator_type: "direct" → single LLM call ("claude"); "agent" →
-        Claude Code agent ("claude-code"). Maps to the backend's translator
-        argument.
+        Claude Code agent ("claude-code"); "codex" → Codex CLI agent.
+        Maps to the backend's translator argument.
         """
         super().__init__(timeout=tlc_timeout)
         from ...languages import get as _get_backend
@@ -780,8 +819,13 @@ class ManualInvariantEvaluator(BaseEvaluator):
         self.static_config_generator = StaticConfigGenerator()
         self.tlc_runner = TLCRunner(timeout=tlc_timeout)
 
-        # "direct" / "agent" → backend translator selector
-        self.translator_choice = "claude-code" if translator_type == "agent" else "claude"
+        # CLI-facing translator names → backend translator selector.
+        if translator_type == "agent":
+            self.translator_choice = "claude-code"
+        elif translator_type == "codex":
+            self.translator_choice = "codex"
+        else:
+            self.translator_choice = "claude"
         self.agent_timeout = agent_timeout
     
     def evaluate(self, 

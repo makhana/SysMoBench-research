@@ -215,7 +215,7 @@ class TLAPlusBackend(LanguageBackend):
             agent_kwargs = {"timeout": agent_timeout} if agent_timeout is not None else {}
             agent = AgentInvariantTranslator(**agent_kwargs)
             success, translated, error = agent.translate_all_invariants(
-                legacy, spec, task_name, "codex"
+                legacy, spec, task_name, "gpt-5"
             )
         else:
             # "claude" or an explicit model name → direct API call

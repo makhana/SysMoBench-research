@@ -33,7 +33,7 @@ metadata:
 
 # TV (transition validation) configuration.
 tv:
-  repo_path: "data/repositories/cocagne_paxos"
+  repo_path: "data/repositories/paxos"
 
   # Spec actions in scope. The agent maps these to whatever names the
   # generated spec actually uses.

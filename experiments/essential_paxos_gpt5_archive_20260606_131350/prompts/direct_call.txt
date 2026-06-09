@@ -13,7 +13,7 @@ Source Code from {file_path}:
 Essential Paxos modeling requirements:
 
 MANDATORY CORE ACTIONS (must include all):
-1. [Prepare] A proposer starts Phase 1, creates a fresh proposal id, resets its promise set, advances its next proposal number, and broadcasts Prepare messages to all acceptors. For trace validation, `Prepare` must also account for the Python `set_proposal(value)` call that happens immediately before a proposer prepares: if the proposer has no current proposed value, `Prepare` may nondeterministically choose a value from `Values` and set it as that proposer's proposed value in the same step; if the proposer already has a value, preserve it.
+1. [Prepare] A proposer starts Phase 1, creates a fresh proposal id, resets its promise set, increments its next proposal number, and broadcasts Prepare messages to all acceptors.
 2. [HandlePrepare] An acceptor processes a Prepare message. If the proposal id equals its current promise, it resends a Promise. If the proposal id is greater than its current promise, it records the new promise and sends a Promise. If the proposal id is lower, it ignores the message.
 3. [HandlePromise] A proposer processes a Promise. It ignores promises for old proposal ids and duplicate promises from the same acceptor. Otherwise it records the promise, adopts the highest previously accepted non-empty value reported by acceptors, and broadcasts Accept messages once a majority has promised and the proposer has a value.
 4. [HandleAccept] An acceptor processes an Accept request. If the proposal id is at least its promised id, it records the promise, accepted proposal id, and accepted value, then sends Accepted messages to all learners. If the proposal id is lower, it ignores the request.
@@ -39,11 +39,9 @@ REQUIRED BEHAVIORAL SCOPE:
   * Accept: proposer sender, acceptor recipient, proposal id, value
   * Accepted: acceptor sender, learner recipient, proposal id, value
 - Acceptor state must include promised proposal id, accepted proposal id, and accepted value.
-- Proposer state must include current proposal id, proposed value, received promises, and highest previously accepted proposal/value learned from promises. The next proposal number may be an explicit variable or, preferably for trace validation, a derived helper from the current proposal id:
-  `NextProposalNum(p) == IF proposalId[p] = NoProposal THEN 1 ELSE ProposalNum(proposalId[p]) + 1`.
-  If you use an explicit `nextPropNum` variable, keep it consistent with the current proposal id in every reachable state and update it deterministically in `Prepare`; do not let it become unconstrained auxiliary state.
-- The Python `set_proposal(value)` input is not captured as a separate trace-validation event. Prefer folding it into `Prepare`: `Prepare(p)` should preserve `proposedVal[p]` when already set, and otherwise choose `v \in Values` and set `proposedVal[p]` to `v` while creating the new proposal id. Do not require a separate `SetProposal` step before `Prepare` for correctness. If you still include a `SetProposal` helper, it must be auxiliary only and must not be necessary for any of the five required action transitions to match traces.
-- Learner state should be trace-friendly. The real trace primarily observes the learner's final decided proposal/value, not hidden learner bookkeeping. Prefer modeling learner variables as only `finalPid` and `finalValue`, and derive quorum knowledge from the in-flight `Accepted` messages in `msgs`. Avoid independent learner auxiliary variables such as per-acceptor latest maps, per-proposal count maps, or value tables unless they are absolutely necessary; hidden learner variables changing on non-decision `HandleAccepted` steps will make transition validation fail even when `finalPid`/`finalValue` match.
+- Proposer state must include current proposal id, proposed value, next proposal number, received promises, and highest previously accepted proposal/value learned from promises.
+- The Python `set_proposal(value)` input may be modeled either as finite initial proposer values or as an auxiliary `SetProposal(p, v)` action. If you include `SetProposal`, it may appear in `Next`, but it is not one of the five trace-validation actions and must not replace `Prepare`.
+- Learner state must include the latest accepted proposal id per acceptor, enough per-proposal counts to decide by quorum, and the final decided proposal/value.
 - Quorums are simple majorities of `Acceptors`.
 - A learner decides only when a majority of acceptors report the same proposal id and value.
 
@@ -72,14 +70,9 @@ PAXOS-SPECIFIC TLA+ MODELING RULES:
 - Never define proposal-id helpers with `IF pid = NoProposal THEN ...`. Since `NoProposal == <<0, 0>>`, all proposal ids have tuple shape and the helpers can index safely.
 - Use finite majority checks such as `Cardinality(S) * 2 > Cardinality(Acceptors)`, where `S` is always a set. Never call a set-cardinality majority helper on a number such as `count[pid]`; TLC will crash with "Attempted to compute cardinality of the value".
 - If you define `Majority(S) == Cardinality(S) * 2 > Cardinality(Acceptors)`, then every call must have the form `Majority({a \in Acceptors : ...})` or `Majority(SomeSet)`. Bad: `Majority(counts[l][pid])`.
-- Prefer not to model learner quorum with numeric `counts` variables or hidden learner maps. Instead, derive the learner's quorum decision from `Accepted` messages already present in `msgs`. For a candidate message `m`, compute the set of acceptors whose latest accepted message to learner `l` has the same proposal id and value:
-  `LatestAcceptedBy(a, l, pid, v) ==`
-  `  /\ \E ma \in msgs : ma.kind = "Accepted" /\ ma.from = a /\ ma.to = l /\ ma.pid = pid /\ ma.val = v`
-  `  /\ \A mb \in msgs : (mb.kind = "Accepted" /\ mb.from = a /\ mb.to = l) => ProposalIDLeq(mb.pid, pid)`
-  then decide with:
-  `agreeing == {a2 \in Acceptors : LatestAcceptedBy(a2, l, m.pid, m.val)}`
-  `IF Majority(agreeing) THEN ...`.
-  This matches the Python learner's "latest accepted per acceptor" semantics without introducing unobserved state changes.
+- Prefer not to model learner quorum with a numeric `counts` variable. Instead, keep `latestFromAcc[l][a]` and `acceptedValByPid`/`valueForPid`, then decide with a set comprehension:
+  `agreeing == {a2 \in Acceptors : latestFromAccPrime[l][a2] = pid}`
+  `IF Majority(agreeing) THEN ...`
 - If you do use numeric counts, type them with a finite bound such as `0..Cardinality(Acceptors)` and define a separate numeric helper like `CountMajority(n) == n * 2 > Cardinality(Acceptors)`. Never pass a number to `Cardinality`.
 - Do not use unbounded `Nat`, unbounded `Seq`, unbounded `CHOOSE`, or `CHOOSE n \in Nat : ...` in a way TLC must enumerate. In `TypeOK`, use finite numeric ranges such as `0..Cardinality(Acceptors)` and `1..(MaxBallot + 1)`, never `Nat`.
 - Do not call `Min(...)` or `Max(...)`. They are not available from `Naturals`, `FiniteSets`, or `TLC`. If you need a two-argument minimum/maximum, define helpers before use:
@@ -92,8 +85,6 @@ PAXOS-SPECIFIC TLA+ MODELING RULES:
 - Define `TypeOK` for all variables and keep finite type expressions readable for SANY/TLC.
 - Define `vars` as the tuple of every variable.
 - Define `Spec == Init /\ [][Next]_vars`.
-- `HandleAccepted(l, m)` must be idempotent after a learner has already decided. If `finalValue[l] # NoValue`, processing a later or duplicate `Accepted` message should be allowed and should leave all state unchanged. Do not guard the action with `finalValue[l] = NoValue` unless you also provide a stuttering branch for post-decision accepted messages.
-- For non-quorum `HandleAccepted` deliveries before a decision, leave the trace-visible learner state unchanged. Do not update hidden learner bookkeeping variables in these non-quorum steps; derive quorum from `msgs` instead.
 - Define `Next` as a disjunction of parenthesized existential actions, or with leading disjunction bullets. Do not write multiple `\E ... :` clauses in one unparenthesized expression where bound names can leak across later disjuncts. Use this safe shape:
   `Next ==`
   `  \/ (\E p \in Proposers : Prepare(p))`
@@ -101,7 +92,7 @@ PAXOS-SPECIFIC TLA+ MODELING RULES:
   `  \/ (\E p \in Proposers, m \in msgs : HandlePromise(p, m))`
   `  \/ (\E a \in Acceptors, m \in msgs : HandleAccept(a, m))`
   `  \/ (\E l \in Learners, m \in msgs : HandleAccepted(l, m))`
-  Include auxiliary actions such as `SetProposal` as their own parenthesized disjuncts only if they are not required for trace-validation action matching.
+  Include auxiliary actions such as `SetProposal` as their own parenthesized disjuncts.
 
 EVALUATION METHOD:
 Your specification will be validated against execution traces collected from the real system. For each observed state transition in a trace, the evaluator checks whether one of your actions, applied from the trace pre-state, reaches the trace post-state in exactly one step. Each target action is graded independently by pass rate across sampled trace windows.
