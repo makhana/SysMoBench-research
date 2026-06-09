@@ -1,4 +1,4 @@
-You are a TLA+ expert specializing in distributed consensus and Paxos safety. Translate the expert-written Essential Paxos invariant templates into operators over the generated specification.
+You are a TLA+ expert specializing in distributed systems and Paxos consensus. Your task is to implement a set of expert-written invariants for the given Essential Paxos TLA+ specification.
 
 ## Target Specification
 
@@ -10,74 +10,59 @@ $invariant_templates
 
 ## Implementation Requirements
 
-1. First understand the generated spec's modeling choices:
-   - How does it represent proposers, acceptors, learners, messages, quorums, proposal ids, and sentinels?
-   - Which variables correspond to Cocagne's `Proposer.proposal_id`, `Proposer.proposed_value`, `Acceptor.promised_id`, `Acceptor.accepted_id`, `Acceptor.accepted_value`, `Learner.final_proposal_id`, and `Learner.final_value`?
-   - Does it track acceptance history, only latest accepted state, or enough learner state to reconstruct quorum decisions?
+1. **Deep Analysis**: First, thoroughly understand both the invariant template's semantic intent and the specification's modeling approach:
+   - What consensus safety or liveness property does each template aim to verify?
+   - How does the specification represent proposer, acceptor, and learner state?
+   - What are the semantic equivalents between template placeholders and specification variables?
 
-2. Map each template placeholder to concrete expressions over the spec:
-   - `<Learners>` -> the learner constant or domain used by the spec
-   - `<decided(l)>` -> the final value for learner `l`, or the no-value sentinel if none
-   - `<NoValue>` -> the spec's no-value sentinel
-   - `<ProposedValues>` -> values actually offered by proposers; use `Values` only if the spec does not track proposal inputs and all `Values` are proposable
-   - `<Acceptors>` -> the acceptor constant or domain used by the spec
-   - `<ProposalIDs>` -> the finite real proposal-id set, excluding the no-proposal sentinel when appropriate
-   - `<hasAccepted(a, n, v)>` -> an acceptance-history membership test, or the latest accepted-state predicate if the spec tracks only latest acceptance
-   - `<promised_id(a)>` -> the acceptor's current promised proposal id
-   - `<vars>` -> the exact `vars` tuple defined by the spec
+2. **Semantic Mapping**: For each invariant, identify the conceptual mapping between template and specification:
+   - `<decided(l)>` → find the variable storing the learner's final decided value (e.g. `learnerFinalValue[l]`)
+   - `<promised_id(a)>` → find the acceptor's current promise variable (e.g. `acceptorPromisedId[a]`)
+   - `<hasAccepted(a, n, v)>` → find how the spec records an acceptor's latest accepted proposal id and value
+   - `<ProposedValues>` → derive the set of values ever proposed (e.g. `{v \in Values : \E p \in Proposers : proposerValue[p] = v}`)
+   - `<NoValue>` → the sentinel constant declared in the spec
 
-3. TLC-safe TLA+ expression rules:
-   - Do not write filtered expression comprehensions such as `{ proposedVal[p] : p \in Proposers /\ proposedVal[p] # NoValue }`; that is not valid TLA+ syntax.
-   - If you need to say "some proposer currently has this value", use an existential:
-     `\E p \in Proposers : proposedVal[p] = finalValue[l]`.
-   - If the spec declares `Values` as the finite set of all proposable input values, prefer the robust Validity shape:
-     `Validity == \A l \in Learners : finalValue[l] # NoValue => finalValue[l] \in Values`.
-   - For `PromiseMonotonic`, emit exactly one outer always operator around the bracketed action formula:
-     `PromiseMonotonic == [][\A a \in Acceptors : ProposalIDGeq(promisedId'[a], promisedId[a])]_vars`.
-     Never emit `[][][...]_vars`.
-   - Use `/=` or `#` consistently for inequality; both are accepted, but do not invent `!=`.
-   - Do not use undeclared helpers, undefined set functions, direct tuple ordering, or model-value ordering.
+3. **Creative Adaptation**: Translate each invariant while preserving its core safety meaning:
+   - **DO NOT** simply replace placeholder names — understand the underlying distributed systems logic
+   - **DO** redesign predicate logic to fit the specification's data structure granularity
+   - **PRESERVE** the original Paxos safety guarantees without weakening any property
 
-4. Preserve the semantic intent of each invariant:
-   - `Agreement`: no two decided learners can disagree on value.
-   - `Validity`: any decided value must be a value that could have been proposed.
-   - `Stability`: an acceptor cannot accept two different values for the same proposal id.
-   - `PromiseMonotonic`: acceptor promises never decrease across steps.
+4. **TLA+ Property Type Constraints**:
 
-5. Proposal-id ordering:
-   - Use ordering helpers defined by the spec, such as `ProposalIDLt`, `ProposalIDLeq`, or `ProposalIDGeq`.
-   - Do not compare proposal-id tuples directly with `<`, `>`, `<=`, or `>=`.
-   - Do not compare proposer model values directly.
-   - For `PromiseMonotonic`, express non-decreasing promises with the spec's helper, for example `ProposalIDLeq(promised[a], promised'[a])`.
+   **FOR SAFETY PROPERTIES** (type: "safety"):
+   - **MUST** be STATE PREDICATES (describe single states only)
+   - **NEVER** use primed variables or temporal operators (`[]`, `<>`, `~>`)
+   - **ONLY** use unprimed variables and constants
+   - Example correct form: `Agreement == \A l1, l2 \in Learners : ...`
 
-6. Property type constraints:
-   - For template type `safety`, output a state predicate over one state. Use only unprimed variables. Do not use temporal operators or action names.
-   - For template type `liveness` or `temporal_safety`, output a temporal formula suitable for the cfg `PROPERTY` section. `PromiseMonotonic` should be a stuttering-insensitive temporal/action property using the spec's `vars` tuple.
+   **FOR LIVENESS PROPERTIES** (type: "liveness"):
+   - **MUST** be TEMPORAL FORMULAS (describe execution traces)
+   - **MUST** use the `[][P]_vars` or `<>` idiom
+   - `PromiseMonotonic` is a step-level property: `[][...]_vars` — do NOT coerce it into a state predicate
+   - Example correct form: `PromiseMonotonic == [][\A a \in Acceptors : ...]_vars`
 
-7. Constraint compliance:
-   - Use only variables, constants, and operators that exist in the provided specification, or define local helpers inside `LET ... IN`.
-   - Preserve the exact invariant names from the templates.
-   - Return one definition for every provided template unless the core property is impossible to express from the generated state.
-   - If the spec only exposes latest state where a history property would be stronger, return the strongest faithful expression available and include a short TLA+ comment inside that definition explaining the limitation.
+5. **Constraint Compliance**:
+   - Use ONLY variables, constants, and operators that exist in the specification
+   - Generate complete, syntactically valid TLA+ definitions
+   - Maintain the exact invariant names from the templates: `Agreement`, `Validity`, `Stability`, `PromiseMonotonic`
 
-## Output Format
+6. **Output format**: Return a JSON object containing an array of complete TLA+ invariant definitions
 
-Return only valid JSON, with no markdown and no explanatory text. Example shape:
+## Example Output Format
 
+```json
 {
   "invariants": [
-    "Agreement == \\A l1, l2 \\in Learners : (learnerFinalValue[l1] /= NoValue /\\ learnerFinalValue[l2] /= NoValue) => learnerFinalValue[l1] = learnerFinalValue[l2]",
-    "Validity == \\A l \\in Learners : learnerFinalValue[l] /= NoValue => learnerFinalValue[l] \\in Values",
-    "Stability == \\A a \\in Acceptors : \\A n \\in ProposalIDs : \\A v1, v2 \\in Values : ((acceptorAcceptedId[a] = n /\\ acceptorAcceptedValue[a] = v1) /\\ (acceptorAcceptedId[a] = n /\\ acceptorAcceptedValue[a] = v2)) => v1 = v2",
-    "PromiseMonotonic == [][\\A a \\in Acceptors : ProposalIDLeq(acceptorPromisedId[a], acceptorPromisedId'[a])]_vars"
+    "Agreement == \\A l1, l2 \\in Learners : (learnerFinalValue[l1] # NoValue /\\ learnerFinalValue[l2] # NoValue) => learnerFinalValue[l1] = learnerFinalValue[l2]",
+    "PromiseMonotonic == [][(\\A a \\in Acceptors : acceptorPromisedId[a] = NoValue \\/ acceptorPromisedId'[a] = NoValue \\/ ~ProposalIDLt(acceptorPromisedId'[a], acceptorPromisedId[a]))]_vars"
   ]
 }
+```
 
-CRITICAL:
-- The top-level JSON value must be an object with exactly this shape: `{ "invariants": [ ... ] }`.
-- Each array element must be a complete TLA+ definition string: `"InvariantName == <expression>"`.
-- Use exactly the invariant names from the templates.
-- Do not output a separate `EssentialPaxosInvariants` module.
-- Do not wrap the JSON in markdown fences.
-- JSON escaping rule: TLA+ operators like `\A`, `\E`, `\in`, and `/\` contain one backslash in final TLA+ code. In JSON strings, write them as `"\\A"`, `"\\E"`, `"\\in"`, and `"/\\"`.
-- Start immediately with the opening brace `{`.
+**CRITICAL REQUIREMENTS**:
+- Use EXACTLY the invariant names from the templates (`Agreement`, `Validity`, `Stability`, `PromiseMonotonic`)
+- Use ONLY variables, constants, and operators that exist in the provided specification
+- **JSON ESCAPING**: TLA+ operators like `\A`, `\E`, `\in` contain ONE backslash. In JSON strings write `\\A`, `\\E`, `\\in`. Do NOT double-escape (`\\\\A` is wrong).
+- Return ONLY valid JSON, no explanatory text before or after
+- Each array element must be a complete TLA+ definition: `"InvariantName == <expression>"`
+- Start your response immediately with the opening brace `{`

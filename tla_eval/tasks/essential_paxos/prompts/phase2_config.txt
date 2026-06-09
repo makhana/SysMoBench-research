@@ -1,36 +1,30 @@
-You are a TLA+ expert. Generate one complete TLC configuration file (.cfg) for the Essential Paxos specification below.
+You are a TLA+ expert. Generate a complete TLC configuration file (.cfg) for the Essential Paxos specification that can be directly saved and used for model checking.
 
 ## Input Specification
 
 $tla_spec
 
-## Generated Invariants
-
-$invariants
-
 ## Requirements
 
-1. Analyze the specification and identify the exact specification operator and every declared CONSTANT.
-2. Use `SPECIFICATION Spec` when the module defines `Spec`; otherwise use the exact specification operator defined by the module. Do not use separate INIT/NEXT clauses unless no specification operator exists.
-3. Assign every declared constant with concrete finite values. Do not bind constants that the spec does not declare.
-4. Prefer this small but non-trivial Paxos model when the matching constants exist:
-   - `Acceptors = {a1, a2, a3}`
-   - `Proposers = {1, 2}`
-   - `Learners = {l1, l2}` (or `{l1}` if the spec only supports one learner)
-   - `Values = {v1, v2}`
-   - `NoValue = NoValue`
-   - `MaxBallot = 4`
-5. Use bare TLC model values for acceptors, learners, values, and `NoValue`; do not quote them as strings.
-6. Do not bind `NoProposal` unless the specification declares it as a CONSTANT. Preferred Essential Paxos specs define `NoProposal == <<0, 0>>` inside the module, because TLC cfg files in this pipeline cannot bind tuple expressions such as `<<0, 0>>` to constants.
-7. Do not bind a `ProposerRank` constant unless the specification declares it. The preferred Essential Paxos prompt no longer uses it; proposer ids are numeric instead.
-8. If the spec uses `BallotNumbers` or another finite ballot constant instead of `MaxBallot`, bind it to a small finite set such as `{1, 2, 3, 4}`.
-9. If the spec declares extra finite constants, assign the smallest sensible values that keep Prepare/Promise/Accept/Accepted behavior possible.
-10. Include `CHECK_DEADLOCK FALSE` because single-decree Paxos can legitimately stop after a decision.
-11. Include `INVARIANT TypeOK` only if `TypeOK` is actually defined in the specification.
-12. Include provided generated invariants only if they are present in the Generated Invariants section or already defined in the specification text. State predicates go under `INVARIANT`; temporal formulas using `[]`, `<>`, `~>`, or primed variables go under `PROPERTY`.
-13. Do not invent expert invariants such as `Agreement`, `Validity`, `Stability`, or `PromiseMonotonic` when they are not defined or provided.
-14. Do not declare `SYMMETRY`; it can obscure trace-validation and invariant debugging for this task.
-15. Output only raw .cfg content: no markdown, no code fences, and no explanations.
+1. **Analyze the specification** to identify the main specification name and all declared constants
+2. **Generate a complete .cfg file** with SPECIFICATION, CONSTANTS, INVARIANT, PROPERTY, and CHECK_DEADLOCK sections
+3. **Use these exact constant values** to ensure correct and efficient model checking:
+   - `Acceptors = {a1, a2, a3}` — three acceptors, quorum size = 2
+   - `Proposers = {p1, p2}` — two proposers (enables dueling ballot scenarios)
+   - `Learners = {l1}` — one learner is sufficient for safety verification
+   - `Values = {v1, v2}` — two distinct proposable values
+   - `NoValue = NoValue` — model value sentinel (unquoted — this binds it as a TLC model value, not a string)
+   - `MaxBallot = 3` — bounds ProposalIDs to (0..3) \X Proposers
+4. **INVARIANT section** — include all state invariants defined in the spec:
+   - `TypeOK`
+   - `Agreement`
+   - `Validity`
+   - `Stability`
+5. **PROPERTY section** — PromiseMonotonic is a step-level temporal formula, not a state predicate. It MUST appear under PROPERTY, not INVARIANT:
+   - `PromiseMonotonic`
+6. **CHECK_DEADLOCK FALSE** — Paxos quiesces once a value is decided; without this TLC reports the terminal quiescent state as a deadlock
+7. **Do NOT declare SYMMETRY** — symmetry reductions are unsound when invariants use existential quantification over specific identifiers
+8. **Output ONLY the raw .cfg file content** — no markdown, no code blocks, no prose
 
 ## Example Output Format
 
@@ -38,15 +32,19 @@ SPECIFICATION Spec
 
 CONSTANTS
     Acceptors = {a1, a2, a3}
-    Proposers = {1, 2}
-    Learners = {l1, l2}
-    Values = {v1, v2}
-    NoValue = NoValue
-    MaxBallot = 4
+    Proposers = {p1, p2}
+    Learners  = {l1}
+    Values    = {v1, v2}
+    NoValue   = NoValue
+    MaxBallot = 3
 
-INVARIANT
-    TypeOK
+INVARIANT TypeOK
+INVARIANT Agreement
+INVARIANT Validity
+INVARIANT Stability
+
+PROPERTY PromiseMonotonic
 
 CHECK_DEADLOCK FALSE
 
-CRITICAL: emit exactly one cfg file. Start immediately with `SPECIFICATION`. Put each invariant or property name on its own line. Stop immediately after the final cfg line.
+**CRITICAL: Start your response immediately with "SPECIFICATION" and include nothing else. Output ONLY the raw .cfg content.**

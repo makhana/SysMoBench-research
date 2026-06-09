@@ -1,113 +1,44 @@
-You are an expert in formal verification and TLA+ specifications with deep expertise in distributed consensus protocols, especially single-decree Paxos.
+You are an expert in formal verification and TLA+ specifications with deep expertise in distributed systems, particularly Paxos consensus protocols.
 
-Convert the following Essential Paxos Python source code to a comprehensive finite-state TLA+ specification.
+Convert the following Essential Paxos Python implementation to a comprehensive TLA+ specification.
 
-System: Cocagne Essential Paxos single-decree consensus
-Focus: {focus}
+System: Essential Paxos — single-decree consensus
+Focus: Two-phase consensus across Proposers, Acceptors, and Learners
 
-Source Code from {file_path}:
+Source Code:
 ```python
 {source_code}
 ```
 
-Essential Paxos modeling requirements:
-
 MANDATORY CORE ACTIONS (must include all):
-1. [Prepare] A proposer starts Phase 1, creates a fresh proposal id, resets its promise set, advances its next proposal number, and broadcasts Prepare messages to all acceptors. For trace validation, `Prepare` must also account for the Python `set_proposal(value)` call that happens immediately before a proposer prepares: if the proposer has no current proposed value, `Prepare` may nondeterministically choose a value from `Values` and set it as that proposer's proposed value in the same step; if the proposer already has a value, preserve it.
-2. [HandlePrepare] An acceptor processes a Prepare message. If the proposal id equals its current promise, it resends a Promise. If the proposal id is greater than its current promise, it records the new promise and sends a Promise. If the proposal id is lower, it ignores the message.
-3. [HandlePromise] A proposer processes a Promise. It ignores promises for old proposal ids and duplicate promises from the same acceptor. Otherwise it records the promise, adopts the highest previously accepted non-empty value reported by acceptors, and broadcasts Accept messages once a majority has promised and the proposer has a value.
-4. [HandleAccept] An acceptor processes an Accept request. If the proposal id is at least its promised id, it records the promise, accepted proposal id, and accepted value, then sends Accepted messages to all learners. If the proposal id is lower, it ignores the request.
-5. [HandleAccepted] A learner records Accepted messages from acceptors, keeps only the latest proposal id seen from each acceptor, and decides a final proposal/value after a majority of acceptors report the same proposal id and value.
+1. 【Phase 1a】Prepare(p) — a proposer picks a new ballot number and broadcasts a Prepare message to all acceptors
+2. 【Phase 1b】HandlePrepare(a, m) — an acceptor processes a Prepare message; if the ballot is higher than its current promise, it updates its promise and replies with a Promise message carrying any previously accepted value
+3. 【Phase 2a】HandlePromise(p, m) — a proposer collects Promise replies; once a quorum is reached, it selects a value (highest previously-accepted value seen in promises, or its own) and broadcasts an Accept message
+4. 【Phase 2b】HandleAccept(a, m) — an acceptor processes an Accept message; if the ballot is still valid, it records the acceptance and broadcasts an Accepted message to all learners
+5. 【Learning】HandleAccepted(l, m) — a learner collects Accepted messages; once a quorum of acceptors has accepted the same ballot, it records the final decided value
 
 EXPLICITLY EXCLUDED (do not model):
-- Multi-Paxos, replicated logs, slots, terms, epochs, or sequence numbers across multiple consensus instances
-- Leader election, heartbeats, leases, NACKs, or explicit retransmission protocols
-- Persistence, durability, crashes, restarts, disk state, or Byzantine faults
-- Real sockets, threads, timers, blocking IO, sleeps, or retry loops
-- Liveness guarantees that require stable leaders or fairness assumptions
-- Code outside the single-decree behavior in `paxos/essential.py`
+- Multi-Paxos, log replication, or sequence numbers across multiple consensus instances
+- Leader election, heartbeats, or NACKs
+- Durability, persistence, or crash recovery
+- Message retransmission (the network model handles this implicitly)
+- Byzantine faults
+- Liveness properties or fairness assumptions
 
 REQUIRED BEHAVIORAL SCOPE:
-- Model three roles: Proposer, Acceptor, and Learner. Multiple instances of each role may exist.
-- Model exactly these network message kinds: Prepare, Promise, Accept, Accepted.
-- Use one global asynchronous network variable `msgs` containing in-flight messages.
-- Sending a message is modeled by adding a record to `msgs`.
-- Receiving a message reads a selected record from `msgs` without removing it. This intentionally permits loss, duplication, reordering, and repeated delivery.
-- Message records should carry enough information to match the Python handlers:
-  * Prepare: proposer sender, acceptor recipient, proposal id
-  * Promise: acceptor sender, proposer recipient, proposal id, previously accepted proposal id, previously accepted value
-  * Accept: proposer sender, acceptor recipient, proposal id, value
-  * Accepted: acceptor sender, learner recipient, proposal id, value
-- Acceptor state must include promised proposal id, accepted proposal id, and accepted value.
-- Proposer state must include current proposal id, proposed value, received promises, and highest previously accepted proposal/value learned from promises. The next proposal number may be an explicit variable or, preferably for trace validation, a derived helper from the current proposal id:
-  `NextProposalNum(p) == IF proposalId[p] = NoProposal THEN 1 ELSE ProposalNum(proposalId[p]) + 1`.
-  If you use an explicit `nextPropNum` variable, keep it consistent with the current proposal id in every reachable state and update it deterministically in `Prepare`; do not let it become unconstrained auxiliary state.
-- The Python `set_proposal(value)` input is not captured as a separate trace-validation event. Prefer folding it into `Prepare`: `Prepare(p)` should preserve `proposedVal[p]` when already set, and otherwise choose `v \in Values` and set `proposedVal[p]` to `v` while creating the new proposal id. Do not require a separate `SetProposal` step before `Prepare` for correctness. If you still include a `SetProposal` helper, it must be auxiliary only and must not be necessary for any of the five required action transitions to match traces.
-- Learner state should be trace-friendly. The real trace primarily observes the learner's final decided proposal/value, not hidden learner bookkeeping. Prefer modeling learner variables as only `finalPid` and `finalValue`, and derive quorum knowledge from the in-flight `Accepted` messages in `msgs`. Avoid independent learner auxiliary variables such as per-acceptor latest maps, per-proposal count maps, or value tables unless they are absolutely necessary; hidden learner variables changing on non-decision `HandleAccepted` steps will make transition validation fail even when `finalPid`/`finalValue` match.
-- Quorums are simple majorities of `Acceptors`.
-- A learner decides only when a majority of acceptors report the same proposal id and value.
-
-PAXOS-SPECIFIC TLA+ MODELING RULES:
-- Declare finite CONSTANTS for `Acceptors`, `Proposers`, `Learners`, `Values`, `NoValue`, and `MaxBallot`.
-- Model `Proposers` as a finite set of positive integers in the cfg, for example `{1, 2}`. This avoids cfg-level function constants and still gives every proposer a unique numeric rank.
-- `NoValue` is a model-value sentinel for "no accepted/proposed/decided value yet".
-- `NoProposal` is the sentinel for "no promised/accepted/current proposal id yet". Define it inside the TLA module as an operator, exactly `NoProposal == <<0, 0>>`. Do NOT declare `NoProposal` as a CONSTANT and do NOT put `NoProposal` in the cfg. TLC cfg files in this pipeline cannot bind tuple expressions like `<<0, 0>>` to constants.
-- The TLA constant block must omit `NoProposal`. Good:
-  `CONSTANTS Acceptors, Proposers, Learners, Values, NoValue, MaxBallot`
-  `NoProposal == <<0, 0>>`
-  Bad:
-  `CONSTANTS ..., NoProposal, ...`
-  and bad cfg:
-  `NoProposal = <<0, 0>>`
-- Define `ProposalIDs == (1..MaxBallot) \X Proposers`.
-- Define `ProposalIDOrNone == ProposalIDs \cup {NoProposal}` for variables that may start empty.
-- Do not order proposal-id tuples or model values directly. Never write `pid1 > pid2`, `pid1 >= pid2`, `pid1[2] < pid2[2]`, or similar tuple/model-value comparisons.
-- Do not declare or use a `ProposerRank` function constant. TLC cfg files cannot directly assign the needed function value in this pipeline.
-- Define explicit proposal-id helpers and use them everywhere proposal ids are ordered:
-  `ProposalNum(pid) == pid[1]`
-  `ProposalOwnerRank(pid) == pid[2]`
-  `ProposalIDLt(a, b) == ProposalNum(a) < ProposalNum(b) \/ (ProposalNum(a) = ProposalNum(b) /\ ProposalOwnerRank(a) < ProposalOwnerRank(b))`
-  `ProposalIDLeq(a, b) == a = b \/ ProposalIDLt(a, b)`
-  `ProposalIDGeq(a, b) == ProposalIDLeq(b, a)`
-- Never define proposal-id helpers with `IF pid = NoProposal THEN ...`. Since `NoProposal == <<0, 0>>`, all proposal ids have tuple shape and the helpers can index safely.
-- Use finite majority checks such as `Cardinality(S) * 2 > Cardinality(Acceptors)`, where `S` is always a set. Never call a set-cardinality majority helper on a number such as `count[pid]`; TLC will crash with "Attempted to compute cardinality of the value".
-- If you define `Majority(S) == Cardinality(S) * 2 > Cardinality(Acceptors)`, then every call must have the form `Majority({a \in Acceptors : ...})` or `Majority(SomeSet)`. Bad: `Majority(counts[l][pid])`.
-- Prefer not to model learner quorum with numeric `counts` variables or hidden learner maps. Instead, derive the learner's quorum decision from `Accepted` messages already present in `msgs`. For a candidate message `m`, compute the set of acceptors whose latest accepted message to learner `l` has the same proposal id and value:
-  `LatestAcceptedBy(a, l, pid, v) ==`
-  `  /\ \E ma \in msgs : ma.kind = "Accepted" /\ ma.from = a /\ ma.to = l /\ ma.pid = pid /\ ma.val = v`
-  `  /\ \A mb \in msgs : (mb.kind = "Accepted" /\ mb.from = a /\ mb.to = l) => ProposalIDLeq(mb.pid, pid)`
-  then decide with:
-  `agreeing == {a2 \in Acceptors : LatestAcceptedBy(a2, l, m.pid, m.val)}`
-  `IF Majority(agreeing) THEN ...`.
-  This matches the Python learner's "latest accepted per acceptor" semantics without introducing unobserved state changes.
-- If you do use numeric counts, type them with a finite bound such as `0..Cardinality(Acceptors)` and define a separate numeric helper like `CountMajority(n) == n * 2 > Cardinality(Acceptors)`. Never pass a number to `Cardinality`.
-- Do not use unbounded `Nat`, unbounded `Seq`, unbounded `CHOOSE`, or `CHOOSE n \in Nat : ...` in a way TLC must enumerate. In `TypeOK`, use finite numeric ranges such as `0..Cardinality(Acceptors)` and `1..(MaxBallot + 1)`, never `Nat`.
-- Do not call `Min(...)` or `Max(...)`. They are not available from `Naturals`, `FiniteSets`, or `TLC`. If you need a two-argument minimum/maximum, define helpers before use:
-  `Min2(x, y) == IF x <= y THEN x ELSE y`
-  `Max2(x, y) == IF x >= y THEN x ELSE y`
-  Or avoid caps entirely when a finite count can only increase once per acceptor.
-- Declare variables plainly. Do not hide every role field inside one deeply nested record variable if it makes `TypeOK`, `Init`, or action updates hard to parse.
-- Every variable must be initialized by `Init`.
-- Every action must assign every variable either with a primed value or through `UNCHANGED`.
-- Define `TypeOK` for all variables and keep finite type expressions readable for SANY/TLC.
-- Define `vars` as the tuple of every variable.
-- Define `Spec == Init /\ [][Next]_vars`.
-- `HandleAccepted(l, m)` must be idempotent after a learner has already decided. If `finalValue[l] # NoValue`, processing a later or duplicate `Accepted` message should be allowed and should leave all state unchanged. Do not guard the action with `finalValue[l] = NoValue` unless you also provide a stuttering branch for post-decision accepted messages.
-- For non-quorum `HandleAccepted` deliveries before a decision, leave the trace-visible learner state unchanged. Do not update hidden learner bookkeeping variables in these non-quorum steps; derive quorum from `msgs` instead.
-- Define `Next` as a disjunction of parenthesized existential actions, or with leading disjunction bullets. Do not write multiple `\E ... :` clauses in one unparenthesized expression where bound names can leak across later disjuncts. Use this safe shape:
-  `Next ==`
-  `  \/ (\E p \in Proposers : Prepare(p))`
-  `  \/ (\E a \in Acceptors, m \in msgs : HandlePrepare(a, m))`
-  `  \/ (\E p \in Proposers, m \in msgs : HandlePromise(p, m))`
-  `  \/ (\E a \in Acceptors, m \in msgs : HandleAccept(a, m))`
-  `  \/ (\E l \in Learners, m \in msgs : HandleAccepted(l, m))`
-  Include auxiliary actions such as `SetProposal` as their own parenthesized disjuncts only if they are not required for trace-validation action matching.
+- Asynchronous messaging via a single global set `msgs` of in-flight messages
+- Sending a message: `msgs' = msgs \union {m}`
+- Receiving a message reads from `msgs` without removing it — the same message may be delivered multiple times, modeling loss, duplication, and reordering
+- Quorums are simple majorities of Acceptors
+- A proposer tracks the highest previously-accepted proposal ID it has learned from promises, and adopts that value if present
+- An acceptor only updates its promise if the incoming ballot strictly exceeds its current promise
+- A learner decides once a quorum of distinct acceptors have sent Accepted for the same ballot
 
 EVALUATION METHOD:
-Your specification will be validated against execution traces collected from the real system. For each observed state transition in a trace, the evaluator checks whether one of your actions, applied from the trace pre-state, reaches the trace post-state in exactly one step. Each target action is graded independently by pass rate across sampled trace windows.
+Your specification will be validated against execution traces collected from the real Python implementation. For each observed state transition in a trace, we check whether one of your actions, applied from the trace's pre-state, reaches the trace's post-state in exactly one step. Each target action is graded independently (pass rate across sampled windows).
 
 MANDATORY NAMING CONVENTIONS (Trace Validation Interface):
-To ensure the specification can be validated against real execution traces, the following action names MUST appear EXACTLY (case-sensitive) as top-level action operators in your TLA+ specification. The TV evaluator maps trace events to these action names. Any mismatch causes that action to score 0.
+To ensure the specification can be validated against real system execution traces, the following action names MUST appear EXACTLY (case-sensitive) as top-level action operators in your TLA+ specification. The TV evaluator maps trace events to these action names — any mismatch and the action scores 0.
 
 Required actions:
   - `Prepare`
@@ -116,24 +47,28 @@ Required actions:
   - `HandleAccept`
   - `HandleAccepted`
 
-Each required action must be a named definition, for example `HandlePrepare(a, m) == ...`, and must be referenced from `Next` via existentially quantified disjuncts or direct disjuncts. Do not rename, merge, or split these five actions. Auxiliary actions are allowed only when they preserve the five-action trace-validation contract.
+Each required action must be a named definition (e.g. `Prepare(p) == ...`) referenced from `Next` via `\/ \E ... : ActionName(...)`. Do not rename, merge, or split these actions — they form the contract between your spec and the trace harness.
 
 SYMBOL DECLARATION SAFETY (SANY will reject the spec otherwise):
-- Every identifier you reference must be declared or defined.
-- Common sentinels such as `NULL`, `Nil`, `None`, and `NoValue` are not TLA+ built-ins. Declare `NoValue` as a CONSTANT and bind it in the cfg. Define `NoProposal == <<0, 0>>` in the module instead of declaring it as a CONSTANT.
-- Standard modules do not provide `Min`, `Max`, tuple ordering, or model-value ordering. Do not emit specs that reference undefined operators.
-- Every CONSTANT must appear in the cfg's CONSTANTS block with a concrete finite value.
-- Before emitting the spec, scan each identifier: is it brought in by EXTENDS, declared as a CONSTANT/VARIABLE, or defined via `==` earlier in the module? If none of these is true, SANY will report `Unknown operator`.
+- Every identifier you reference must be declared or defined. Common pitfalls:
+  * `NoValue` is NOT a TLA+ built-in. Declare it as a CONSTANT — the .cfg will bind it to a TLC model value. Never define it as `CHOOSE x : x \notin Values` — TLC cannot evaluate unbounded CHOOSE.
+  * `Nat \X Proposers` makes the state space infinite — TLC will fail to enumerate it. Use `(0..MaxBallot) \X Proposers` instead, where MaxBallot is a CONSTANT bound to a small integer (e.g. 3) in the .cfg.
+  * TLC model values (Proposers, Acceptors, Learners bound in .cfg) do NOT support `<` comparison. Never write `a[2] < b[2]` where a[2] is drawn from Proposers or Acceptors — this throws a TLC runtime error. Compare only on the numeric ballot component: `ProposalIDLt(a, b) == a[1] < b[1]`
+  * TLC does NOT short-circuit `\/`. Never write `x = NoValue \/ ProposalIDLt(x, y)` — TLC evaluates both sides regardless, so `ProposalIDLt(NoValue, y)` = `NoValue[1] < y[1]` will throw a runtime error. Always guard with: `IF x = NoValue THEN TRUE ELSE ProposalIDLt(x, y)`. This applies everywhere you compare a variable that might be NoValue using ProposalIDLt.
+  * Never use `CHOOSE n \in Nat : ...` for quorum size — Nat is infinite. Use inline cardinality: `Cardinality(someSet) * 2 > Cardinality(Acceptors)`
+  * Every name in `VARIABLES` must appear in `Init` and be updated by `Next`. Every CONSTANT must appear in the .cfg's CONSTANTS block.
+  * The `Prepare(p)` action MUST include the guard `proposerNextProposalNumber[p] <= MaxBallot`. Without it, ballot numbers will exceed MaxBallot, producing proposal IDs outside `ProposalIDs`, which violates TypeOK.
+- VARIABLES: declare each variable on its own line with a plain name. Do NOT group variables into a single record-typed variable per role — declare each field as a separate VARIABLE. Grouped record types spanning multiple lines cause SANY parse errors.
+  Correct:   `VARIABLES proposerProposalId, proposerValue, acceptorPromisedId, msgs`
+  Wrong:     `VARIABLES proposerState` where proposerState is typed as `[Proposers -> [...]]`
+- In TypeOK, keep each type expression on one line. If it must span lines, keep the closing `]]` on the same line as the last field — a `]]` alone on a line at conjunction indentation level causes a SANY parse error.
 
 CRITICAL OUTPUT REQUIREMENTS:
-1. The MODULE name must be exactly `EssentialPaxos` (`---- MODULE EssentialPaxos ----`).
-2. Output EXACTLY TWO fenced code blocks: a ```tla block and a ```cfg block. Output NOTHING else.
-3. The ```tla block must contain the full TLA+ specification, starting with `---- MODULE EssentialPaxos ----` and ending with `====`.
-4. The specification must define `vars`, `Init`, `TypeOK`, all five required actions, `Next`, and `Spec == Init /\ [][Next]_vars`.
-5. The specification must extend at least `Naturals`, `FiniteSets`, and `TLC`. Add only other standard modules you actually use.
-6. The ```cfg block must use `SPECIFICATION Spec`, not separate INIT/NEXT clauses.
-7. The cfg must assign concrete finite values to every declared CONSTANT. Use at least three acceptors, two numeric proposers (`Proposers = {1, 2}`), one or two learners, two values, and `MaxBallot >= 3`. Use bare TLC model values such as `{a1, a2, a3}`, `{l1, l2}`, `{v1, v2}`, and `NoValue`; do not quote them as strings unless the spec explicitly requires strings.
-8. The cfg must bind `NoValue`. It must not bind `NoProposal` or `ProposerRank`, because the spec must not declare those constants.
-9. Include `CHECK_DEADLOCK FALSE` in the cfg because single-decree Paxos can legitimately quiesce after decision.
-10. Do NOT define expert invariants such as `Agreement`, `Validity`, `Stability`, or `PromiseMonotonic` in the base spec. Only `TypeOK` is allowed as a built-in sanity invariant.
-11. Do NOT add INVARIANT or PROPERTY lines to the direct-call cfg. Expert invariant checking is handled by a later SysMoBench phase.
+1. The MODULE name must be exactly `EssentialPaxos` (---- MODULE EssentialPaxos ----)
+2. EXTENDS Naturals, FiniteSets, TLC
+3. CONSTANTS: Acceptors, Proposers, Learners, Values, NoValue, MaxBallot
+4. Define: `ProposalIDs == (0..MaxBallot) \X Proposers`
+5. Define: `ProposalIDLt(a, b) == a[1] < b[1]`
+6. Define: `Quorums == {Q \in SUBSET Acceptors : Cardinality(Q) * 2 > Cardinality(Acceptors)}`
+7. Include a `TypeOK` invariant, an `Init` predicate, all 5 named actions, a `Next` predicate, `vars`, and `Spec == Init /\ [][Next]_vars`
+8. Output ONLY the TLA+ module wrapped in a single ```tla code block. No prose before or after.
