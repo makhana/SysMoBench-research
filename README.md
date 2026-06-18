@@ -64,6 +64,83 @@ python3 scripts/run_batch_experiment.py --all --model claude
 
 See [`docs/Usage.md`](docs/Usage.md) for details.
 
+## Project: Essential Paxos Extension
+
+This fork adds a task for Cocagne's single-decree Essential Paxos implementation (`paxos/essential.py`, pinned at commit `cf3b5a2`). The task is intentionally scoped to the 202-line `essential.py` core: proposers, acceptors, learners, four Paxos message kinds, majority quorums, and single-decree consensus only.
+
+Important project additions:
+
+- `tla_eval/tasks/essential_paxos/task.yaml` declares the SysMoBench task.
+- `tla_eval/tasks/essential_paxos/prompts/` contains the active prompt set.
+- `scripts/harness/essential_paxos/` contains the Python trace harness and runner.
+- `data/invariant_templates/essential_paxos/invariants.yaml` defines Agreement, Validity, Stability, and PromiseMonotonic templates.
+- `artifacts/essential_paxos/traces/` contains generated NDJSON traces for happy path, dueling proposers, message loss, and late promise scenarios.
+
+The harness leaves the upstream Paxos source unchanged. It uses an external messenger, deterministic trace scenarios, sentinel proposal-id initialization for Python 3 compatibility, and a `TracedLearner` wrapper to avoid Python 2-era `None` proposal comparisons while preserving the intended proposal-ordering semantics.
+
+### Essential Paxos Experiment Commands
+
+This project evaluated GPT-5 through OpenAI/Codex and Claude Sonnet 4.5 through Claude Code. To run the project, activate the environment and export model keys before running experiments:
+
+```
+source .venv/bin/activate
+export OPENAI_API_KEY="..."       # used for gpt-5
+export CODEX_API_KEY="$OPENAI_API_KEY"
+export ANTHROPIC_API_KEY="..."    # used for claude
+```
+
+Compile: generate `EssentialPaxos.tla`/`.cfg` and check that SANY accepts the specification.
+
+```
+sysmobench --task essential_paxos --method direct_call --model gpt5 --metric compilation_check
+```
+
+Runtime: run TLC on the generated specification and configuration, reporting whether model checking completes or reaches the timeout without violations.
+
+```
+sysmobench --task essential_paxos --method direct_call --model gpt5 \
+  --metric runtime_check \
+  --spec-file output/compilation_check/tla/essential_paxos/direct_call_gpt5/<timestamp>/EssentialPaxos.tla \
+  --config-file output/compilation_check/tla/essential_paxos/direct_call_gpt5/<timestamp>/EssentialPaxos.cfg \
+  --tlc-timeout 600
+```
+
+Transition validation: compare each captured Python trace window against the corresponding TLA+ action.
+
+```
+sysmobench --task essential_paxos --method direct_call --model gpt5 \
+  --metric transition_validation \
+  --spec-file output/compilation_check/tla/essential_paxos/direct_call_gpt5/<timestamp>/EssentialPaxos.tla \
+  --config-file output/compilation_check/tla/essential_paxos/direct_call_gpt5/<timestamp>/EssentialPaxos.cfg \
+  --tv-agent codex --tv-model gpt-5 --tv-budget 5 --tv-timeout 3600 --yes
+```
+
+Invariant verification: translate the four expert templates and check them with TLC.
+
+```
+sysmobench --task essential_paxos --method direct_call --model gpt5 \
+  --metric invariant_verification \
+  --spec-file output/compilation_check/tla/essential_paxos/direct_call_gpt5/<timestamp>/EssentialPaxos.tla \
+  --config-file output/compilation_check/tla/essential_paxos/direct_call_gpt5/<timestamp>/EssentialPaxos.cfg \
+  --inv-translator-type codex \
+  --tlc-timeout 600
+```
+
+The report table columns map directly to these stages: `Compile` and `Runtime` come from each stage's `result.json`, `TV rate` is the passed-window fraction in `tv_results.json` or the TV final report, and `Invariants` is the number of the four templates that TLC verifies successfully.
+
+Claude-oriented prompt experiments use the same `sysmobench` commands with `--model claude` when Anthropic credentials are configured. Cross-model prompt-transfer experiments were run by swapping the prompt directory before generation and then restoring it afterwards.
+
+### Essential Paxos Results
+
+Stable project archives are under `experiments/`:
+
+- `experiments/06_06_incomplete_run2_gpt5/`: GPT-5 run that passed compilation/runtime/coverage but was not the final full pass.
+- `experiments/06_08_imperfect_run3_gpt5/`: GPT-5 intermediate run with mixed transition validation and 3/4 invariants.
+- `experiments/06_08_success_run4_gpt5/`: final GPT-5/Codex run; compilation, runtime, transition validation, and invariant verification passed, with 61/61 TV windows and 4/4 invariants.
+- `experiments/06_09_claude_prompts_fail_run_gpt5/`: GPT-5 rerun using the then-current Claude-oriented prompts; compilation failed, documenting the prompt-transfer failure.
+
+Raw timestamped SysMoBench outputs are written to `output/<metric>/tla/essential_paxos/direct_call_<model>/`. Transition-validation workspaces and reports are written to `tv-workspaces/`, with final summaries in `reports/final_report.md` and machine-readable scores in `reports/tv_results.json` when available. Large TLC `states/` directories are generated during model checking and may be deleted without losing the archived JSON summaries. Raw outputs, TV workspaces, cloned artifacts, and `states/` directories are ignored by git because they can grow to many gigabytes.
+
 ## Tasks
 
 `sysmobench --list-tasks` enumerates the live set.
@@ -76,6 +153,7 @@ See [`docs/Usage.md`](docs/Usage.md) for details.
 | `curp` | Xline CURP replication |
 | `zookeeper` | Distributed coordination |
 | `dqueue`, `locksvc`, `raftkvs` | PGo-compiled distributed systems |
+| `essential_paxos` | Single-decree Paxos consensus (Team 3 extension) |
 
 ## Metrics
 
