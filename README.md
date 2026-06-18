@@ -80,14 +80,14 @@ The harness leaves the upstream Paxos source unchanged. It uses an external mess
 
 ### Essential Paxos Experiment Commands
 
-This project evaluated GPT-5 through OpenAI/Codex and Claude Sonnet 4.5 through Claude Code. To run the project, activate the environment and export model keys before running experiments:
+In this project we used two LLMs. OpenAIs Codex and GPT5 and Anthropics Claude Sonet 4.5 and Claude Code. To run the project activate the environment and export model keys before running experiments:
 
 ```
 source .venv/bin/activate
-export OPENAI_API_KEY="..."       # used for gpt-5
-export CODEX_API_KEY="$OPENAI_API_KEY"
-export ANTHROPIC_API_KEY="..."    # used for claude
+export OPENAI_API_KEY="..."      # used for gpt-5
+export ANTHROPIC_API_KEY="..."   # used for claude
 ```
+
 
 Compile: generate `EssentialPaxos.tla`/`.cfg` and check that SANY accepts the specification.
 
