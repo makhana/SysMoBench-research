@@ -1,0 +1,68 @@
+You are a TLA+ expert specializing in distributed systems and Paxos consensus. Your task is to implement a set of expert-written invariants for the given Essential Paxos TLA+ specification.
+
+## Target Specification
+
+$tla_specification
+
+## Invariants to Implement
+
+$invariant_templates
+
+## Implementation Requirements
+
+1. **Deep Analysis**: First, thoroughly understand both the invariant template's semantic intent and the specification's modeling approach:
+   - What consensus safety or liveness property does each template aim to verify?
+   - How does the specification represent proposer, acceptor, and learner state?
+   - What are the semantic equivalents between template placeholders and specification variables?
+
+2. **Semantic Mapping**: For each invariant, identify the conceptual mapping between template and specification:
+   - `<decided(l)>` → find the variable storing the learner's final decided value (e.g. `learnerFinalValue[l]`)
+   - `<promised_id(a)>` → find the acceptor's current promise variable (e.g. `acceptorPromisedId[a]`)
+   - `<hasAccepted(a, n, v)>` → find how the spec records an acceptor's latest accepted proposal id and value
+   - `<ProposedValues>` → derive the set of values ever proposed (e.g. `{v \in Values : \E p \in Proposers : proposerValue[p] = v}`)
+   - `<NoValue>` → the sentinel constant declared in the spec
+
+3. **Creative Adaptation**: Translate each invariant while preserving its core safety meaning:
+   - **DO NOT** simply replace placeholder names — understand the underlying distributed systems logic
+   - **DO** redesign predicate logic to fit the specification's data structure granularity
+   - **PRESERVE** the original Paxos safety guarantees without weakening any property
+
+4. **TLA+ Property Type Constraints**:
+
+   **FOR SAFETY PROPERTIES** (type: "safety"):
+   - **MUST** be STATE PREDICATES (describe single states only)
+   - **NEVER** use primed variables or temporal operators (`[]`, `<>`, `~>`)
+   - **ONLY** use unprimed variables and constants
+   - Example correct form: `Agreement == \A l1, l2 \in Learners : ...`
+
+   **FOR LIVENESS PROPERTIES** (type: "liveness"):
+   - **MUST** be TEMPORAL FORMULAS (describe execution traces)
+   - **MUST** use the `[][P]_vars` or `<>` idiom
+   - `PromiseMonotonic` is a step-level property: `[][...]_vars` — do NOT coerce it into a state predicate
+   - Example correct form: `PromiseMonotonic == [][\A a \in Acceptors : ...]_vars`
+
+5. **Constraint Compliance**:
+   - Use ONLY variables, constants, and operators that exist in the specification
+   - Generate complete, syntactically valid TLA+ definitions
+   - Maintain the exact invariant names from the templates: `Agreement`, `Validity`, `Stability`, `PromiseMonotonic`
+
+6. **Output format**: Return a JSON object containing an array of complete TLA+ invariant definitions
+
+## Example Output Format
+
+```json
+{
+  "invariants": [
+    "Agreement == \\A l1, l2 \\in Learners : (learnerFinalValue[l1] # NoValue /\\ learnerFinalValue[l2] # NoValue) => learnerFinalValue[l1] = learnerFinalValue[l2]",
+    "PromiseMonotonic == [][(\\A a \\in Acceptors : acceptorPromisedId[a] = NoValue \\/ acceptorPromisedId'[a] = NoValue \\/ ~ProposalIDLt(acceptorPromisedId'[a], acceptorPromisedId[a]))]_vars"
+  ]
+}
+```
+
+**CRITICAL REQUIREMENTS**:
+- Use EXACTLY the invariant names from the templates (`Agreement`, `Validity`, `Stability`, `PromiseMonotonic`)
+- Use ONLY variables, constants, and operators that exist in the provided specification
+- **JSON ESCAPING**: TLA+ operators like `\A`, `\E`, `\in` contain ONE backslash. In JSON strings write `\\A`, `\\E`, `\\in`. Do NOT double-escape (`\\\\A` is wrong).
+- Return ONLY valid JSON, no explanatory text before or after
+- Each array element must be a complete TLA+ definition: `"InvariantName == <expression>"`
+- Start your response immediately with the opening brace `{`
