@@ -80,7 +80,7 @@ The harness leaves the upstream Paxos source unchanged. It uses an external mess
 
 ### Essential Paxos Experiment Commands
 
-In this project we used two LLMs. OpenAIs Codex and GPT5 and Anthropics Claude Sonet 4.5 and Claude Code. To run the project activate the environment and export model keys before running experiments:
+In this project we used two LLMs: OpenAI's GPT-5 (via Codex) and Anthropic's Claude Sonnet 4.5 (via Claude Code). To run the project activate the environment and export model keys before running experiments:
 
 ```
 source .venv/bin/activate
@@ -138,6 +138,12 @@ Stable project archives are under `experiments/`:
 - `experiments/06_08_imperfect_run3_gpt5/`: GPT-5 intermediate run with mixed transition validation and 3/4 invariants.
 - `experiments/06_08_success_run4_gpt5/`: final GPT-5/Codex run; compilation, runtime, transition validation, and invariant verification passed, with 61/61 TV windows and 4/4 invariants.
 - `experiments/06_09_claude_prompts_fail_run_gpt5/`: GPT-5 rerun using the then-current Claude-oriented prompts; compilation failed, documenting the prompt-transfer failure.
+
+Claude Sonnet 4.5 archives:
+
+- `experiments/06_04_early_fail_run_claude/`: Claude iteration 1; spec compiled but TLC rejected it because the generated `.cfg` omitted the Learners constant binding (Table 1, Run 1).
+- `experiments/06_08_success_run_claude/`: final Claude passing run; compilation, runtime, transition validation, and invariant verification all passed, with 48/61 TV windows (78.7%) and 4/4 invariants.
+- `experiments/06_09_codex_prompts_fail_run_claude/`: Claude rerun using the Codex-tuned prompts (PromptX); compilation failed with a SANY forward-reference error, documenting the cross-model prompt-transfer failure.
 
 Raw timestamped SysMoBench outputs are written to `output/<metric>/tla/essential_paxos/direct_call_<model>/`. Transition-validation workspaces and reports are written to `tv-workspaces/`, with final summaries in `reports/final_report.md` and machine-readable scores in `reports/tv_results.json` when available. Large TLC `states/` directories are generated during model checking and may be deleted without losing the archived JSON summaries. Raw outputs, TV workspaces, cloned artifacts, and `states/` directories are ignored by git because they can grow to many gigabytes.
 

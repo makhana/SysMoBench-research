@@ -1,0 +1,50 @@
+You are a TLA+ expert. Generate a complete TLC configuration file (.cfg) for the Essential Paxos specification that can be directly saved and used for model checking.
+
+## Input Specification
+
+$tla_spec
+
+## Requirements
+
+1. **Analyze the specification** to identify the main specification name and all declared constants
+2. **Generate a complete .cfg file** with SPECIFICATION, CONSTANTS, INVARIANT, PROPERTY, and CHECK_DEADLOCK sections
+3. **Use these exact constant values** to ensure correct and efficient model checking:
+   - `Acceptors = {a1, a2, a3}` — three acceptors, quorum size = 2
+   - `Proposers = {p1, p2}` — two proposers (enables dueling ballot scenarios)
+   - `Learners = {l1}` — one learner is sufficient for safety verification
+   - `Values = {v1, v2}` — two distinct proposable values
+   - `NoValue = NoValue` — model value sentinel (unquoted — this binds it as a TLC model value, not a string)
+   - `MaxBallot = 3` — bounds ProposalIDs to (0..3) \X Proposers
+4. **INVARIANT section** — include all state invariants defined in the spec:
+   - `TypeOK`
+   - `Agreement`
+   - `Validity`
+   - `Stability`
+5. **PROPERTY section** — PromiseMonotonic is a step-level temporal formula, not a state predicate. It MUST appear under PROPERTY, not INVARIANT:
+   - `PromiseMonotonic`
+6. **CHECK_DEADLOCK FALSE** — Paxos quiesces once a value is decided; without this TLC reports the terminal quiescent state as a deadlock
+7. **Do NOT declare SYMMETRY** — symmetry reductions are unsound when invariants use existential quantification over specific identifiers
+8. **Output ONLY the raw .cfg file content** — no markdown, no code blocks, no prose
+
+## Example Output Format
+
+SPECIFICATION Spec
+
+CONSTANTS
+    Acceptors = {a1, a2, a3}
+    Proposers = {p1, p2}
+    Learners  = {l1}
+    Values    = {v1, v2}
+    NoValue   = NoValue
+    MaxBallot = 3
+
+INVARIANT TypeOK
+INVARIANT Agreement
+INVARIANT Validity
+INVARIANT Stability
+
+PROPERTY PromiseMonotonic
+
+CHECK_DEADLOCK FALSE
+
+**CRITICAL: Start your response immediately with "SPECIFICATION" and include nothing else. Output ONLY the raw .cfg content.**

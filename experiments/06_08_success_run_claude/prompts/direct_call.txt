@@ -1,0 +1,74 @@
+You are an expert in formal verification and TLA+ specifications with deep expertise in distributed systems, particularly Paxos consensus protocols.
+
+Convert the following Essential Paxos Python implementation to a comprehensive TLA+ specification.
+
+System: Essential Paxos — single-decree consensus
+Focus: Two-phase consensus across Proposers, Acceptors, and Learners
+
+Source Code:
+```python
+{source_code}
+```
+
+MANDATORY CORE ACTIONS (must include all):
+1. 【Phase 1a】Prepare(p) — a proposer picks a new ballot number and broadcasts a Prepare message to all acceptors
+2. 【Phase 1b】HandlePrepare(a, m) — an acceptor processes a Prepare message; if the ballot is higher than its current promise, it updates its promise and replies with a Promise message carrying any previously accepted value
+3. 【Phase 2a】HandlePromise(p, m) — a proposer collects Promise replies; once a quorum is reached, it selects a value (highest previously-accepted value seen in promises, or its own) and broadcasts an Accept message
+4. 【Phase 2b】HandleAccept(a, m) — an acceptor processes an Accept message; if the ballot is still valid, it records the acceptance and broadcasts an Accepted message to all learners
+5. 【Learning】HandleAccepted(l, m) — a learner collects Accepted messages; once a quorum of acceptors has accepted the same ballot, it records the final decided value
+
+EXPLICITLY EXCLUDED (do not model):
+- Multi-Paxos, log replication, or sequence numbers across multiple consensus instances
+- Leader election, heartbeats, or NACKs
+- Durability, persistence, or crash recovery
+- Message retransmission (the network model handles this implicitly)
+- Byzantine faults
+- Liveness properties or fairness assumptions
+
+REQUIRED BEHAVIORAL SCOPE:
+- Asynchronous messaging via a single global set `msgs` of in-flight messages
+- Sending a message: `msgs' = msgs \union {m}`
+- Receiving a message reads from `msgs` without removing it — the same message may be delivered multiple times, modeling loss, duplication, and reordering
+- Quorums are simple majorities of Acceptors
+- A proposer tracks the highest previously-accepted proposal ID it has learned from promises, and adopts that value if present
+- An acceptor only updates its promise if the incoming ballot strictly exceeds its current promise
+- A learner decides once a quorum of distinct acceptors have sent Accepted for the same ballot
+
+EVALUATION METHOD:
+Your specification will be validated against execution traces collected from the real Python implementation. For each observed state transition in a trace, we check whether one of your actions, applied from the trace's pre-state, reaches the trace's post-state in exactly one step. Each target action is graded independently (pass rate across sampled windows).
+
+MANDATORY NAMING CONVENTIONS (Trace Validation Interface):
+To ensure the specification can be validated against real system execution traces, the following action names MUST appear EXACTLY (case-sensitive) as top-level action operators in your TLA+ specification. The TV evaluator maps trace events to these action names — any mismatch and the action scores 0.
+
+Required actions:
+  - `Prepare`
+  - `HandlePrepare`
+  - `HandlePromise`
+  - `HandleAccept`
+  - `HandleAccepted`
+
+Each required action must be a named definition (e.g. `Prepare(p) == ...`) referenced from `Next` via `\/ \E ... : ActionName(...)`. Do not rename, merge, or split these actions — they form the contract between your spec and the trace harness.
+
+SYMBOL DECLARATION SAFETY (SANY will reject the spec otherwise):
+- Every identifier you reference must be declared or defined. Common pitfalls:
+  * `NoValue` is NOT a TLA+ built-in. Declare it as a CONSTANT — the .cfg will bind it to a TLC model value. Never define it as `CHOOSE x : x \notin Values` — TLC cannot evaluate unbounded CHOOSE.
+  * `Nat \X Proposers` makes the state space infinite — TLC will fail to enumerate it. Use `(0..MaxBallot) \X Proposers` instead, where MaxBallot is a CONSTANT bound to a small integer (e.g. 3) in the .cfg.
+  * TLC model values (Proposers, Acceptors, Learners bound in .cfg) do NOT support `<` comparison. Never write `a[2] < b[2]` where a[2] is drawn from Proposers or Acceptors — this throws a TLC runtime error. Compare only on the numeric ballot component: `ProposalIDLt(a, b) == a[1] < b[1]`
+  * TLC does NOT short-circuit `\/`. Never write `x = NoValue \/ ProposalIDLt(x, y)` — TLC evaluates both sides regardless, so `ProposalIDLt(NoValue, y)` = `NoValue[1] < y[1]` will throw a runtime error. Always guard with: `IF x = NoValue THEN TRUE ELSE ProposalIDLt(x, y)`. This applies everywhere you compare a variable that might be NoValue using ProposalIDLt.
+  * Never use `CHOOSE n \in Nat : ...` for quorum size — Nat is infinite. Use inline cardinality: `Cardinality(someSet) * 2 > Cardinality(Acceptors)`
+  * Every name in `VARIABLES` must appear in `Init` and be updated by `Next`. Every CONSTANT must appear in the .cfg's CONSTANTS block.
+  * The `Prepare(p)` action MUST include the guard `proposerNextProposalNumber[p] <= MaxBallot`. Without it, ballot numbers will exceed MaxBallot, producing proposal IDs outside `ProposalIDs`, which violates TypeOK.
+- VARIABLES: declare each variable on its own line with a plain name. Do NOT group variables into a single record-typed variable per role — declare each field as a separate VARIABLE. Grouped record types spanning multiple lines cause SANY parse errors.
+  Correct:   `VARIABLES proposerProposalId, proposerValue, acceptorPromisedId, msgs`
+  Wrong:     `VARIABLES proposerState` where proposerState is typed as `[Proposers -> [...]]`
+- In TypeOK, keep each type expression on one line. If it must span lines, keep the closing `]]` on the same line as the last field — a `]]` alone on a line at conjunction indentation level causes a SANY parse error.
+
+CRITICAL OUTPUT REQUIREMENTS:
+1. The MODULE name must be exactly `EssentialPaxos` (---- MODULE EssentialPaxos ----)
+2. EXTENDS Naturals, FiniteSets, TLC
+3. CONSTANTS: Acceptors, Proposers, Learners, Values, NoValue, MaxBallot
+4. Define: `ProposalIDs == (0..MaxBallot) \X Proposers`
+5. Define: `ProposalIDLt(a, b) == a[1] < b[1]`
+6. Define: `Quorums == {Q \in SUBSET Acceptors : Cardinality(Q) * 2 > Cardinality(Acceptors)}`
+7. Include a `TypeOK` invariant, an `Init` predicate, all 5 named actions, a `Next` predicate, `vars`, and `Spec == Init /\ [][Next]_vars`
+8. Output ONLY the TLA+ module wrapped in a single ```tla code block. No prose before or after.
