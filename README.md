@@ -74,7 +74,6 @@ Important project additions:
 - `tla_eval/tasks/essential_paxos/prompts/` contains the active prompt set.
 - `scripts/harness/essential_paxos/` contains the Python trace harness and runner.
 - `data/invariant_templates/essential_paxos/invariants.yaml` defines Agreement, Validity, Stability, and PromiseMonotonic templates.
-- `artifacts/essential_paxos/traces/` contains generated NDJSON traces for happy path, dueling proposers, message loss, and late promise scenarios.
 
 The harness leaves the upstream Paxos source unchanged. It uses an external messenger, deterministic trace scenarios, sentinel proposal-id initialization for Python 3 compatibility, and a `TracedLearner` wrapper to avoid Python 2-era `None` proposal comparisons while preserving the intended proposal-ordering semantics.
 
