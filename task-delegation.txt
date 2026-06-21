@@ -3,3 +3,4 @@
 3. ⁠Report Introduction (Section 1), Related Works (Section 5), Limitations (Section 6) - Ana
 4. ⁠Report Experiments (Section 4) - Vuk and Georgios
 5. Report Formal Modeling (Section 2), Evaluation setup (Section 3) - All three
+6. README.md - Vuk and Georgios
